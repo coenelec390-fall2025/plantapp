@@ -2,6 +2,7 @@ package com.example.plantapp;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
@@ -32,6 +33,13 @@ public class DescriptionActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_description);
+
+        View root = findViewById(R.id.main);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(sys.left, sys.top + 40, sys.right, sys.bottom); // add ~40dp extra top padding
+            return insets;
+        });
 
         Button takeAnotherButton = findViewById(R.id.TakeAnotherPictureButton);
         takeAnotherButton.setOnClickListener(v -> {

@@ -27,6 +27,13 @@ public class SettingsActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_settings);
 
+        View root = findViewById(R.id.main);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(sys.left, sys.top + 40, sys.right, sys.bottom); // add ~40dp extra top padding
+            return insets;
+        });
+
         // 🔙 Back button
         findViewById(R.id.BackButton).setOnClickListener(v -> finish());
         usernameDisplay = findViewById(R.id.UsernameDisplay);
@@ -44,15 +51,6 @@ public class SettingsActivity extends AppCompatActivity {
             startActivity(i);
         });
 
-        // Optional: keep system bar padding adjustments
-        View root = findViewById(R.id.main);
-        if (root != null) {
-            ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
-                Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-                v.setPadding(sys.left, sys.top, sys.right, sys.bottom);
-                return insets;
-            });
-        }
 
         loadUsername();
     }
