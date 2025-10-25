@@ -1,92 +1,122 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:padding="32dp"
+    android:background="#E8F5E9"
     tools:context=".SettingsActivity">
 
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/PasswordInput"
-        android:layout_width="379dp"
-        android:layout_height="60dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="340dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/toolbar">
+    <!-- Toolbar Title -->
+    <TextView
+        android:id="@+id/textViewTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:text="Profile"
+        android:textColor="#2E7D32"
+        android:textSize="32sp"
+        android:textStyle="bold" />
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Password" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar"
+    <!-- Username Display -->
+    <TextView
+        android:id="@+id/UsernameDisplay"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#286b37"
-        android:minHeight="?attr/actionBarSize"
-        android:theme="?attr/actionBarTheme"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:text="Username"
+        android:textAlignment="center"
+        android:textSize="24sp"
+        android:textColor="#1B5E20"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Plant Stats -->
+    <TextView
+        android:id="@+id/PlantCounterText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="You've identified 0 plants!"
+        android:textAlignment="center"
+        android:textColor="#388E3C"
+        android:textSize="18sp"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Rank -->
+    <TextView
+        android:id="@+id/PlantRankingText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="You are a Plant Amateur"
+        android:textAlignment="center"
+        android:textColor="#388E3C"
+        android:textSize="18sp"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Rank Progress Bar -->
+    <ProgressBar
+        android:id="@+id/RankProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="12dp"
+        android:layout_marginBottom="24dp"
+        android:max="100"
+        android:progress="30"
+        android:progressDrawable="@drawable/green_progress_bg" />
+
+    <!-- History Section -->
+    <TextView
+        android:id="@+id/PlantHistoryTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Plant History"
+        android:textColor="#2E7D32"
+        android:textStyle="bold"
+        android:textSize="20sp"
+        android:layout_marginBottom="8dp" />
+
+    <ListView
+        android:id="@+id/listView"
+        android:layout_width="match_parent"
+        android:layout_height="180dp"
+        android:background="@drawable/rounded_list_bg"
+        android:padding="12dp"
+        android:divider="#A5D6A7"
+        android:dividerHeight="1dp"
+        android:elevation="4dp"
+        android:scrollbars="vertical"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Action Buttons -->
+    <Button
+        android:id="@+id/ChangeUsernameButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Change Username"
+        android:backgroundTint="#66BB6A"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp" />
+
+    <Button
+        android:id="@+id/ClearHistoryButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Clear History"
+        android:backgroundTint="#A5D6A7"
+        android:textColor="#1B5E20"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp" />
 
     <Button
         android:id="@+id/LogoutButton"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="156dp"
-        android:layout_marginBottom="49dp"
-        android:backgroundTint="#286b37"
         android:text="Log Out"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:backgroundTint="#2E7D32"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold" />
 
-    <Spinner
-        android:id="@+id/RolePicker"
-        android:layout_width="188dp"
-        android:layout_height="34dp"
-        android:layout_marginStart="111dp"
-        android:layout_marginTop="100dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/toolbar" />
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="379dp"
-        android:layout_height="60dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="225dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/toolbar">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/UsernameInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Username" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <TextView
-        android:id="@+id/UsernameChange"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="205dp"
-        android:text="Change your Username"
-        android:textSize="14sp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <TextView
-        android:id="@+id/PasswordChange"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="320dp"
-        android:text="Change your Password"
-        android:textSize="14sp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>
