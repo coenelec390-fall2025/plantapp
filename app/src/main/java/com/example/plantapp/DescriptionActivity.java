@@ -31,7 +31,7 @@ public class DescriptionActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_description);
 
-        resultTextView = findViewById(R.id.resultTextView);
+        resultTextView = findViewById(R.id.PlantDescriptionText);
 
         Executor callbackExecutor = MoreExecutors.directExecutor();
 
