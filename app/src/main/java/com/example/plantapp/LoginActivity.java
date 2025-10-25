@@ -49,6 +49,7 @@ public class LoginActivity extends AppCompatActivity {
             // Go to SignupActivity
             Intent intent = new Intent(LoginActivity.this, SignupActivity.class);
             startActivity(intent);
+            finish();
         });
     }
 
@@ -91,7 +92,7 @@ public class LoginActivity extends AppCompatActivity {
 
                             // ✅ Go to MainActivity or Dashboard
                             startActivity(new Intent(LoginActivity.this, MainActivity.class));
-                            // finish();
+                             finish();
 
                         } else {
                             Log.w(TAG, "signInWithEmail:failure", task.getException());
@@ -116,8 +117,8 @@ public class LoginActivity extends AppCompatActivity {
         // If already logged in, go directly to main activity
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser != null) {
-            // startActivity(new Intent(LoginActivity.this, MainActivity.class));
-            // finish();
+             startActivity(new Intent(LoginActivity.this, MainActivity.class));
+             finish();
         }
     }
 }

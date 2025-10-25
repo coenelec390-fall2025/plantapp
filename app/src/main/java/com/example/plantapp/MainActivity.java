@@ -76,13 +76,16 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onNothingSelected(AdapterView<?> parent) { }
         });
 
-        profileButton.setOnClickListener(v ->
-                startActivity(new Intent(MainActivity.this, SettingsActivity.class)));
+        profileButton.setOnClickListener(v -> {
+                    startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+                    finish();
+                });
 
         cameraButton.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, CameraActivity.class);
             intent.putExtra("userRole", currentRole); // pass the role forward
             startActivity(intent);
+            finish();
         });
 
         // Load the role from Firestore and set spinner accordingly

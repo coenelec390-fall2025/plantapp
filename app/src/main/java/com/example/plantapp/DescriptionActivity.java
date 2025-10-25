@@ -94,8 +94,11 @@ public class DescriptionActivity extends AppCompatActivity {
             });
         }
         if (backBtn != null) {
-            backBtn.setOnClickListener(v ->
-                    startActivity(new Intent(this, MainActivity.class)));
+            backBtn.setOnClickListener(v -> {
+                startActivity(new Intent(this, MainActivity.class));
+                finish();
+            });
+
         }
 
         // Hide confidence initially

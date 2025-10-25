@@ -35,7 +35,10 @@ public class SettingsActivity extends AppCompatActivity {
         });
 
         // 🔙 Back button
-        findViewById(R.id.BackButton).setOnClickListener(v -> finish());
+        findViewById(R.id.BackButton).setOnClickListener(v -> {
+            startActivity(new Intent(this, MainActivity.class));
+            finish();
+        });
         usernameDisplay = findViewById(R.id.UsernameDisplay);
 
         // 🚪 Logout button
@@ -49,6 +52,7 @@ public class SettingsActivity extends AppCompatActivity {
             Intent i = new Intent(SettingsActivity.this, LoginActivity.class);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(i);
+            finish();
         });
 
 

@@ -35,6 +35,7 @@ public class CameraActivity extends AppCompatActivity {
             Intent intent = new Intent(CameraActivity.this, DescriptionActivity.class);
             intent.putExtra("userRole", userRole); // pass to next activity
             startActivity(intent);
+            finish();
         });
 
 

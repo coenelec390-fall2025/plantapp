@@ -58,7 +58,10 @@ public class SignupActivity extends AppCompatActivity {
         btnBackToLogin    = findViewById(R.id.buttonBackToLogin);
 
         btnCreateAccount.setOnClickListener(v -> attemptSignup());
-        btnBackToLogin.setOnClickListener(v -> startActivity(new Intent(SignupActivity.this, LoginActivity.class)));
+        btnBackToLogin.setOnClickListener(v -> {
+            startActivity(new Intent(SignupActivity.this, LoginActivity.class));
+            finish();
+        });
     }
 
     private void attemptSignup() {
@@ -154,7 +157,7 @@ public class SignupActivity extends AppCompatActivity {
 
                     // TODO: Navigate to MainActivity (user is already signed in)
                     startActivity(new Intent(SignupActivity.this, MainActivity.class));
-                    // finish();
+                    finish();
 
                     setUiLoading(false);
                 })
