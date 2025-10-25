@@ -153,7 +153,7 @@ public class SignupActivity extends AppCompatActivity {
                     Toast.makeText(SignupActivity.this, "Account created successfully!", Toast.LENGTH_SHORT).show();
 
                     // TODO: Navigate to MainActivity (user is already signed in)
-                    // startActivity(new Intent(SignupActivity.this, MainActivity.class));
+                    startActivity(new Intent(SignupActivity.this, MainActivity.class));
                     // finish();
 
                     setUiLoading(false);
