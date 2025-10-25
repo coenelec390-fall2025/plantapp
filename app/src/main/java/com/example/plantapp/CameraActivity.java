@@ -30,13 +30,13 @@ public class CameraActivity extends AppCompatActivity {
 
         ImageButton shutterButton = findViewById(R.id.ShutterButton);
         shutterButton.setOnClickListener(v -> {
-            // Temporary toast for feedback
-            Toast.makeText(this, "📸 Picture taken (mock)", Toast.LENGTH_SHORT).show();
+            String userRole = getIntent().getStringExtra("userRole"); // retrieve from MainActivity
 
-            // Navigate to DescriptionActivity
             Intent intent = new Intent(CameraActivity.this, DescriptionActivity.class);
+            intent.putExtra("userRole", userRole); // pass to next activity
             startActivity(intent);
         });
+
 
         ImageButton backButton = findViewById(R.id.BackButton);
         backButton.setOnClickListener(v -> {

@@ -84,7 +84,6 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
                 android:gravity="center"
-                android:text="Scientific name"
                 android:textColor="#388E3C"
                 android:textSize="18sp" />
 
@@ -95,7 +94,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="12dp"
                 android:max="100"
-                android:progress="80"
+                android:progress="0"
                 android:progressDrawable="@drawable/green_progress_bg"
                 android:layout_marginBottom="8dp" />
 
@@ -104,11 +103,11 @@
                 android:id="@+id/ConfidenceText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Confidence: 80%"
-                android:textColor="#2E7D32"
-                android:textSize="16sp"
                 android:layout_marginBottom="16dp"
-                android:gravity="center" />
+                android:gravity="center"
+                android:text="Confidence:"
+                android:textColor="#2E7D32"
+                android:textSize="16sp" />
 
             <!-- Description -->
             <TextView
@@ -120,7 +119,6 @@
                 android:gravity="start"
                 android:lineSpacingExtra="4dp"
                 android:padding="16dp"
-                android:text="Plant Description"
                 android:textColor="#2E7D32"
                 android:textSize="16sp" />
 
