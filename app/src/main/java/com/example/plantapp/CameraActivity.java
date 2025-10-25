@@ -28,6 +28,8 @@ public class CameraActivity extends AppCompatActivity {
 
         ImageButton backButton = findViewById(R.id.BackButton);
         backButton.setOnClickListener(v -> {
+            Intent intent = new Intent(CameraActivity.this, MainActivity.class);
+            startActivity(intent);
             finish();  // closes CameraActivity and returns to MainActivity
         });
 
