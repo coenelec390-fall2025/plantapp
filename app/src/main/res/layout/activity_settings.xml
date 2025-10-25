@@ -1,25 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center_horizontal"
-    android:padding="32dp"
+    android:padding="24dp"
     android:background="#E8F5E9"
     tools:context=".SettingsActivity">
 
-    <!-- Toolbar Title -->
+    <!-- Back button -->
+    <ImageButton
+        android:id="@+id/BackButton"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@android:color/transparent"
+        android:contentDescription="Back"
+        android:src="@android:drawable/ic_media_previous"
+        android:layout_gravity="start"
+        android:layout_marginBottom="4dp"
+        app:tint="#2E7D32" />
+
+    <!-- Title -->
     <TextView
         android:id="@+id/textViewTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
+        android:layout_marginBottom="16dp"
         android:text="Profile"
         android:textColor="#2E7D32"
-        android:textSize="32sp"
+        android:textSize="28sp"
         android:textStyle="bold" />
 
     <!-- Username Display -->
@@ -29,9 +42,9 @@
         android:layout_height="wrap_content"
         android:text="Username"
         android:textAlignment="center"
-        android:textSize="24sp"
+        android:textSize="22sp"
         android:textColor="#1B5E20"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="12dp" />
 
     <!-- Plant Stats -->
     <TextView
@@ -41,8 +54,8 @@
         android:text="You've identified 0 plants!"
         android:textAlignment="center"
         android:textColor="#388E3C"
-        android:textSize="18sp"
-        android:layout_marginBottom="8dp" />
+        android:textSize="16sp"
+        android:layout_marginBottom="6dp" />
 
     <!-- Rank -->
     <TextView
@@ -52,16 +65,16 @@
         android:text="You are a Plant Amateur"
         android:textAlignment="center"
         android:textColor="#388E3C"
-        android:textSize="18sp"
-        android:layout_marginBottom="8dp" />
+        android:textSize="16sp"
+        android:layout_marginBottom="6dp" />
 
     <!-- Rank Progress Bar -->
     <ProgressBar
         android:id="@+id/RankProgressBar"
         style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
-        android:layout_height="12dp"
-        android:layout_marginBottom="24dp"
+        android:layout_height="10dp"
+        android:layout_marginBottom="16dp"
         android:max="100"
         android:progress="30"
         android:progressDrawable="@drawable/green_progress_bg" />
@@ -74,32 +87,22 @@
         android:text="Plant History"
         android:textColor="#2E7D32"
         android:textStyle="bold"
-        android:textSize="20sp"
-        android:layout_marginBottom="8dp" />
+        android:textSize="18sp"
+        android:layout_marginBottom="6dp" />
 
     <ListView
         android:id="@+id/listView"
         android:layout_width="match_parent"
-        android:layout_height="180dp"
+        android:layout_height="140dp"
         android:background="@drawable/rounded_list_bg"
-        android:padding="12dp"
+        android:padding="10dp"
         android:divider="#A5D6A7"
         android:dividerHeight="1dp"
         android:elevation="4dp"
         android:scrollbars="vertical"
-        android:layout_marginBottom="24dp" />
+        android:layout_marginBottom="16dp" />
 
     <!-- Action Buttons -->
-    <Button
-        android:id="@+id/ChangeUsernameButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Change Username"
-        android:backgroundTint="#66BB6A"
-        android:textColor="#FFFFFF"
-        android:textStyle="bold"
-        android:layout_marginBottom="12dp" />
-
     <Button
         android:id="@+id/ClearHistoryButton"
         android:layout_width="match_parent"
@@ -108,7 +111,7 @@
         android:backgroundTint="#A5D6A7"
         android:textColor="#1B5E20"
         android:textStyle="bold"
-        android:layout_marginBottom="12dp" />
+        android:layout_marginBottom="10dp" />
 
     <Button
         android:id="@+id/LogoutButton"
