@@ -15,11 +15,11 @@
         android:id="@+id/textViewTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="PlantApp"
-        android:textSize="32sp"
-        android:textStyle="bold"
+        android:layout_marginBottom="40dp"
+        android:text="SureLeaf"
         android:textColor="#2E7D32"
-        android:layout_marginBottom="40dp" />
+        android:textSize="32sp"
+        android:textStyle="bold" />
 
     <!-- Username Field -->
     <EditText
