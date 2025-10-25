@@ -13,7 +13,7 @@ import com.google.firebase.auth.FirebaseUser;
 public class MainActivity extends AppCompatActivity {
 
     private FirebaseAuth mAuth;
-    private ImageButton profileButton;
+    private ImageButton profileButton, cameraButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,6 +27,13 @@ public class MainActivity extends AppCompatActivity {
         profileButton.setOnClickListener(v -> {
             // Go to SettingsActivity
             Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+            startActivity(intent);
+        });
+
+        cameraButton = findViewById(R.id.CameraButton);
+        cameraButton.setOnClickListener(v -> {
+            // Go to SettingsActivity
+            Intent intent = new Intent(MainActivity.this, CameraActivity.class);
             startActivity(intent);
         });
     }

@@ -123,6 +123,19 @@
                 android:text="Plant Description"
                 android:textColor="#2E7D32"
                 android:textSize="16sp" />
+
+            <!-- Take Another Picture Button -->
+            <Button
+                android:id="@+id/TakeAnotherPictureButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Take Another Picture"
+                android:backgroundTint="#66BB6A"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="32dp"
+                android:elevation="4dp" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
