@@ -1,6 +1,8 @@
 package com.example.plantapp;
 
+import android.content.Intent;
 import android.os.Bundle;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
@@ -31,6 +33,17 @@ public class DescriptionActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_description);
 
+        Button takeAnotherButton = findViewById(R.id.TakeAnotherPictureButton);
+        takeAnotherButton.setOnClickListener(v -> {
+            Intent intent = new Intent(DescriptionActivity.this, CameraActivity.class);
+            startActivity(intent);
+            finish(); // optional: prevents returning here again unless new description is made
+        });
+
+        findViewById(R.id.BackButton).setOnClickListener(v -> {
+            Intent intent = new Intent(DescriptionActivity.this, MainActivity.class);
+            startActivity(intent);
+        });
         resultTextView = findViewById(R.id.PlantDescriptionText);
 
         Executor callbackExecutor = MoreExecutors.directExecutor();
