@@ -28,7 +28,7 @@
                 android:layout_height="48dp"
                 android:background="@android:color/transparent"
                 android:src="@android:drawable/ic_media_previous"
-                android:tint="#2E7D32"
+                app:tint="#2E7D32"
                 android:contentDescription="Back"
                 android:layout_alignParentStart="true"
                 android:layout_centerVertical="true" />
