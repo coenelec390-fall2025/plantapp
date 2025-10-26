@@ -33,8 +33,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class DescriptionActivity extends AppCompatActivity {
-
-    // Views
     private TextView descriptionTv;
     private TextView scientificNameTv;
     private TextView commonNameTv;
@@ -43,18 +41,12 @@ public class DescriptionActivity extends AppCompatActivity {
     private ImageButton backBtn;
     private TextView plantTitle;
     private Button takeAnotherBtn;
-
-    // Results
     private String descriptionText = "";
     private String scientificName  = "";
     private String commonName      = "";
-
-    // Loading animation (only on commonNameTv)
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Runnable loadingRunnable = null;
     private boolean loading = false;
-
-    // Latch for async calls
     private final AtomicInteger pending = new AtomicInteger(3);
 
     @Override
@@ -63,10 +55,11 @@ public class DescriptionActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_description);
 
-        String userRole  = getIntent().getStringExtra("userRole");
-        String plantName = "Papaya"; // TODO: replace with detected plant
+        String userRole  = getIntent().getStringExtra("userRole"); // retrieve user role
+        String plantName = "Papaya"; // placeholder for now, to be replaced with actual predictions
         if (userRole == null) userRole = "Hiker";
 
+        // prevents system bar from overlapping app buttons
         View root = findViewById(R.id.main);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -74,7 +67,6 @@ public class DescriptionActivity extends AppCompatActivity {
             return insets;
         });
 
-        // Bind views
         descriptionTv     = findViewById(R.id.PlantDescriptionText);
         scientificNameTv  = findViewById(R.id.PlantScientificNameText);
         commonNameTv      = findViewById(R.id.PlantNameText);
@@ -86,17 +78,19 @@ public class DescriptionActivity extends AppCompatActivity {
 
         plantTitle.setText("Plant Description\n" + userRole);
 
-        // Disable navigation until ready
+        // disable navigation until info is processed
         disableButton(backBtn);
         disableButton(takeAnotherBtn);
 
-        // Clicks
+        // go to camera activity when takeAnotherButton is clicked
         if (takeAnotherBtn != null) {
             takeAnotherBtn.setOnClickListener(v -> {
                 startActivity(new Intent(this, CameraActivity.class));
                 finish();
             });
         }
+
+        // go back to main activity when backButton is clicked
         if (backBtn != null) {
             backBtn.setOnClickListener(v -> {
                 startActivity(new Intent(this, MainActivity.class));
@@ -105,14 +99,14 @@ public class DescriptionActivity extends AppCompatActivity {
 
         }
 
-        // Hide confidence initially
+        // keep confidence measures hidden until confidence is found
         if (confidenceTv != null)  confidenceTv.setVisibility(View.GONE);
         if (confidenceBar != null) {
             confidenceBar.setVisibility(View.GONE);
             confidenceBar.setProgress(0);
         }
 
-        // Start one loading animation in Common Name
+        // loading animation until name and desc is found
         startLoadingDots(commonNameTv, "Loading");
 
         Executor callbackExecutor = MoreExecutors.directExecutor();
@@ -121,7 +115,7 @@ public class DescriptionActivity extends AppCompatActivity {
                 .generativeModel("gemini-2.5-flash");
         GenerativeModelFutures model = GenerativeModelFutures.from(ai);
 
-        // 1) Description — role-specific, plain text only
+        // generates description in the description slot
         String descriptionPromptText = buildRolePromptNoFormatting(userRole, plantName);
         Content descriptionPrompt = new Content.Builder()
                 .addText(descriptionPromptText)
@@ -131,8 +125,7 @@ public class DescriptionActivity extends AppCompatActivity {
         Futures.addCallback(descFuture, new FutureCallback<GenerateContentResponse>() {
             @Override public void onSuccess(GenerateContentResponse result) {
                 String raw = (result != null && result.getText() != null) ? result.getText().trim() : "";
-                // Sanitize but preserve dashes; we'll format them into lines later
-                descriptionText = sanitizePlainTextKeepDashes(raw);
+                descriptionText = sanitizePlainTextKeepDashes(raw); // removes unnecessary special characters
                 maybeDeliverAll();
             }
             @Override public void onFailure(Throwable t) {
@@ -141,7 +134,7 @@ public class DescriptionActivity extends AppCompatActivity {
             }
         }, callbackExecutor);
 
-        // 2) Scientific name — plain text only
+        // generates and returns the scientific name of the plant
         Content sciPrompt = new Content.Builder()
                 .addText("What is the scientific name of " + plantName +
                         "? Respond with only the scientific name as plain text (Genus species), " +
@@ -152,7 +145,7 @@ public class DescriptionActivity extends AppCompatActivity {
         Futures.addCallback(sciFuture, new FutureCallback<GenerateContentResponse>() {
             @Override public void onSuccess(GenerateContentResponse result) {
                 String raw = result != null && result.getText() != null ? result.getText().trim() : "";
-                scientificName = cleanScientificName(sanitizePlainText(raw));
+                scientificName = cleanScientificName(sanitizePlainText(raw)); // removes unnecessary special characters
                 maybeDeliverAll();
             }
             @Override public void onFailure(Throwable t) {
@@ -161,7 +154,7 @@ public class DescriptionActivity extends AppCompatActivity {
             }
         }, callbackExecutor);
 
-        // 3) Common name — plain text only
+        // generates and returns the common name of the plant
         Content commonPrompt = new Content.Builder()
                 .addText("What is the common name of " + plantName +
                         "? Respond with only the common name as plain text, " +
@@ -172,7 +165,7 @@ public class DescriptionActivity extends AppCompatActivity {
         Futures.addCallback(commonFuture, new FutureCallback<GenerateContentResponse>() {
             @Override public void onSuccess(GenerateContentResponse result) {
                 String raw = result != null && result.getText() != null ? result.getText().trim() : "";
-                commonName = cleanCommonName(sanitizePlainText(raw));
+                commonName = cleanCommonName(sanitizePlainText(raw)); // removes unnecessary special characters
                 maybeDeliverAll();
             }
             @Override public void onFailure(Throwable t) {
@@ -182,7 +175,7 @@ public class DescriptionActivity extends AppCompatActivity {
         }, callbackExecutor);
     }
 
-    /** Builds role-specific description prompt with plain text and point-form instructions. */
+    // prompts that are sent to the AI model
     private String buildRolePromptNoFormatting(String roleRaw, String plantName) {
         String role = (roleRaw == null) ? "" : roleRaw.trim().toLowerCase();
         String baseRule =
@@ -209,20 +202,17 @@ public class DescriptionActivity extends AppCompatActivity {
         }
     }
 
-    /** Called after each request finishes. When all 3 are done, stop loading and update UI once. */
+    // all information from AI is placed into their respective slots on the description page
     private void maybeDeliverAll() {
         if (pending.decrementAndGet() == 0) {
             runOnUiThread(() -> {
                 stopLoadingDots();
-
-                // Format description so each existing '-' starts a new line
                 String formattedDescription = formatPoints(descriptionText);
 
                 if (commonNameTv != null)      commonNameTv.setText(commonName);
                 if (scientificNameTv != null)  scientificNameTv.setText(scientificName);
                 if (descriptionTv != null)     descriptionTv.setText(formattedDescription);
 
-                // Reveal and fill confidence
                 if (confidenceTv != null) {
                     confidenceTv.setVisibility(View.VISIBLE);
                     confidenceTv.setText("Confidence: 100%");
@@ -232,16 +222,14 @@ public class DescriptionActivity extends AppCompatActivity {
                     confidenceBar.setProgress(100);
                 }
 
-                // Enable navigation buttons now
+                // enables navigation buttons
                 enableButton(backBtn);
                 enableButton(takeAnotherBtn);
             });
         }
     }
 
-    // --------------------
-    // Loading animation (commonNameTv)
-    // --------------------
+    // loading animation to hide empty spaces while AI generates
     private void startLoadingDots(TextView target, String base) {
         if (target == null) return;
         if (loading) return;
@@ -261,31 +249,27 @@ public class DescriptionActivity extends AppCompatActivity {
         handler.postDelayed(loadingRunnable, 500);
     }
 
+    // ends loading animation
     private void stopLoadingDots() {
         loading = false;
         if (loadingRunnable != null) handler.removeCallbacks(loadingRunnable);
     }
 
-    // --------------------
-    // Buttons helpers
-    // --------------------
+    // disables the buttons
     private void disableButton(View btn) {
         if (btn == null) return;
         btn.setEnabled(false);
         btn.setAlpha(0.5f);
     }
 
+    // enables the buttons
     private void enableButton(View btn) {
         if (btn == null) return;
         btn.setEnabled(true);
         btn.setAlpha(1f);
     }
 
-    // --------------------
-    // Text cleaners / formatters
-    // --------------------
-
-    /** Sanitize but keep hyphens so we can format them into new lines later. */
+    // removes unnecessary special characters
     private String sanitizePlainTextKeepDashes(String s) {
         if (s == null) return "";
         // remove markdown-like emphasis markers but keep '-'
@@ -295,16 +279,15 @@ public class DescriptionActivity extends AppCompatActivity {
         return s;
     }
 
-    /** Inserts two newlines before each '>' and keeps the one at the start too. */
+    // formats information
     private String formatPoints(String text) {
         if (text == null) return "";
-        // Add two line breaks before every '>' including the first one
         String formatted = text.replaceAll("\\s*>\\s*", "\n\n");
-        // Trim leading/trailing spaces and newlines
         formatted = formatted.trim();
         return formatted;
     }
 
+    // removes unnecessary special characters
     private String sanitizePlainText(String s) {
         if (s == null) return "";
         s = s.replaceAll("[*_`~]", "");
@@ -313,16 +296,18 @@ public class DescriptionActivity extends AppCompatActivity {
         return s;
     }
 
+    // ensures scientific name is clear and concise
     private String cleanScientificName(String raw) {
         if (raw == null) return "";
         String s = sanitizePlainText(raw);
-        s = s.replaceAll("\\.$", ""); // trailing period
+        s = s.replaceAll("\\.$", "");
         Pattern p = Pattern.compile("([A-Z][a-z]+\\s+[a-z]+(?:\\s+[a-z]+)?)");
         Matcher m = p.matcher(s);
         if (m.find()) return m.group(1);
         return s.split("\\R", 2)[0].trim();
     }
 
+    //ensures common name is clear and concise
     private String cleanCommonName(String raw) {
         if (raw == null) return "";
         String s = sanitizePlainText(raw);

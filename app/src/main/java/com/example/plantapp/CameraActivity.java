@@ -20,25 +20,26 @@ public class CameraActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_camera);
 
+        // ensures system bar does not overlap app buttons
         View root = findViewById(R.id.main);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(sys.left, sys.top + 40, sys.right, sys.bottom); // add ~40dp extra top padding
+            v.setPadding(sys.left, sys.top + 40, sys.right, sys.bottom);
             return insets;
         });
 
-
+        // camera shutter button for CameraActivity
         ImageButton shutterButton = findViewById(R.id.ShutterButton);
         shutterButton.setOnClickListener(v -> {
-            String userRole = getIntent().getStringExtra("userRole"); // retrieve from MainActivity
+            String userRole = getIntent().getStringExtra("userRole"); // retrieve user role
 
             Intent intent = new Intent(CameraActivity.this, DescriptionActivity.class);
             intent.putExtra("userRole", userRole); // pass to next activity
             startActivity(intent);
-            finish();
+            finish(); // close CameraActivity to prevent return using back button
         });
 
-
+        // back button for CameraActivity
         ImageButton backButton = findViewById(R.id.BackButton);
         backButton.setOnClickListener(v -> {
             Intent intent = new Intent(CameraActivity.this, MainActivity.class);
