@@ -30,9 +30,11 @@ import java.util.Map;
 
 public class SignupActivity extends AppCompatActivity {
 
+    // initialize database
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
 
+    // initialize ui elements
     private EditText etUsername;
     private EditText etEmail;
     private EditText etPassword;
@@ -46,10 +48,11 @@ public class SignupActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_signup);
 
+        // get instance of firebase auth and database
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
 
-        // Bind views
+        // link ui elements to xml ids
         etUsername        = findViewById(R.id.editTextUsername);
         etEmail           = findViewById(R.id.editTextEmail);
         etPassword        = findViewById(R.id.editTextPassword);
@@ -57,7 +60,10 @@ public class SignupActivity extends AppCompatActivity {
         btnCreateAccount  = findViewById(R.id.buttonCreateAccount);
         btnBackToLogin    = findViewById(R.id.buttonBackToLogin);
 
+        // signup button creates account
         btnCreateAccount.setOnClickListener(v -> attemptSignup());
+
+        // login button takes user back to login activity
         btnBackToLogin.setOnClickListener(v -> {
             startActivity(new Intent(SignupActivity.this, LoginActivity.class));
             finish();
@@ -65,12 +71,13 @@ public class SignupActivity extends AppCompatActivity {
     }
 
     private void attemptSignup() {
+        // store users signup information
         String username = etUsername.getText().toString().trim();
         String email    = etEmail.getText().toString().trim();
         String pass     = etPassword.getText().toString();
         String confirm  = etConfirmPassword.getText().toString();
 
-        // Validation
+        // field error control
         if (TextUtils.isEmpty(username)) {
             etUsername.setError("Username required");
             etUsername.requestFocus();
@@ -104,6 +111,7 @@ public class SignupActivity extends AppCompatActivity {
 
         setUiLoading(true);
 
+        // create user using firebase auth
         mAuth.createUserWithEmailAndPassword(email, pass)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                     @Override public void onComplete(@NonNull Task<AuthResult> task) {
@@ -137,11 +145,13 @@ public class SignupActivity extends AppCompatActivity {
                 });
     }
 
+    // button opacity changes depending on loading status
     private void setUiLoading(boolean loading) {
         btnCreateAccount.setEnabled(!loading);
         btnCreateAccount.setAlpha(loading ? 0.6f : 1f);
     }
 
+    // store username, email, creationdate in firestore under uid/{username}
     private void saveUsernameToFirestore(String uid, String username, String email) {
         Map<String, Object> userData = new HashMap<>();
         userData.put("username", username);
@@ -155,7 +165,6 @@ public class SignupActivity extends AppCompatActivity {
                     Log.d(TAG, "User data saved successfully!");
                     Toast.makeText(SignupActivity.this, "Account created successfully!", Toast.LENGTH_SHORT).show();
 
-                    // TODO: Navigate to MainActivity (user is already signed in)
                     startActivity(new Intent(SignupActivity.this, MainActivity.class));
                     finish();
 
@@ -171,6 +180,5 @@ public class SignupActivity extends AppCompatActivity {
     @Override
     public void onStart() {
         super.onStart();
-        // No reload needed; user logs in immediately on creation.
     }
 }
