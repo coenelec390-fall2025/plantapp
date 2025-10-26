@@ -22,9 +22,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
 public class LoginActivity extends AppCompatActivity {
-
     private FirebaseAuth mAuth;
-
     private EditText etEmail;
     private EditText etPassword;
     private Button btnLogin;
@@ -38,26 +36,26 @@ public class LoginActivity extends AppCompatActivity {
 
         mAuth = FirebaseAuth.getInstance();
 
-        // Bind views
         etEmail         = findViewById(R.id.editTextEmail);
         etPassword      = findViewById(R.id.editTextPassword);
         btnLogin        = findViewById(R.id.buttonLogin);
         btnCreateAccount = findViewById(R.id.buttonCreateAccount);
 
+        // set up click listeners for login and create account
         btnLogin.setOnClickListener(v -> attemptLogin());
         btnCreateAccount.setOnClickListener(v -> {
-            // Go to SignupActivity
             Intent intent = new Intent(LoginActivity.this, SignupActivity.class);
             startActivity(intent);
             finish();
         });
     }
 
+    // try to login with email and password if they exist
     private void attemptLogin() {
         String email = etEmail.getText().toString().trim();
         String pass  = etPassword.getText().toString();
 
-        // Validate input
+        // checks for valid inputs
         if (TextUtils.isEmpty(email)) {
             etEmail.setError("Email required");
             etEmail.requestFocus();
@@ -76,7 +74,7 @@ public class LoginActivity extends AppCompatActivity {
 
         setUiLoading(true);
 
-        // Sign in with Firebase Auth
+        // sign in through firebase
         mAuth.signInWithEmailAndPassword(email, pass)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                     @Override
@@ -90,9 +88,8 @@ public class LoginActivity extends AppCompatActivity {
                                     "Welcome back!",
                                     Toast.LENGTH_SHORT).show();
 
-                            // ✅ Go to MainActivity or Dashboard
                             startActivity(new Intent(LoginActivity.this, MainActivity.class));
-                             finish();
+                            finish();
 
                         } else {
                             Log.w(TAG, "signInWithEmail:failure", task.getException());
@@ -105,6 +102,7 @@ public class LoginActivity extends AppCompatActivity {
                 });
     }
 
+    // loading UI while logging in
     private void setUiLoading(boolean loading) {
         btnLogin.setEnabled(!loading);
         btnLogin.setAlpha(loading ? 0.6f : 1f);
@@ -114,7 +112,7 @@ public class LoginActivity extends AppCompatActivity {
     public void onStart() {
         super.onStart();
 
-        // If already logged in, go directly to main activity
+        // if already logged in go directly to main activity
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser != null) {
              startActivity(new Intent(LoginActivity.this, MainActivity.class));
