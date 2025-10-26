@@ -41,6 +41,7 @@ public class DescriptionActivity extends AppCompatActivity {
     private TextView confidenceTv;
     private ProgressBar confidenceBar;
     private ImageButton backBtn;
+    private TextView plantTitle;
     private Button takeAnotherBtn;
 
     // Results
@@ -81,6 +82,9 @@ public class DescriptionActivity extends AppCompatActivity {
         confidenceBar     = findViewById(R.id.ConfidenceBar);
         backBtn           = findViewById(R.id.BackButton);
         takeAnotherBtn    = findViewById(R.id.TakeAnotherPictureButton);
+        plantTitle        = findViewById(R.id.PlantTitle);
+
+        plantTitle.setText("Plant Description\n" + userRole);
 
         // Disable navigation until ready
         disableButton(backBtn);

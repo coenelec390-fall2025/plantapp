@@ -42,7 +42,8 @@
                 android:textSize="28sp"
                 android:textStyle="bold"
                 android:layout_centerHorizontal="true"
-                android:layout_centerVertical="true" />
+                android:layout_centerVertical="true"
+                android:gravity="center" />
         </RelativeLayout>
 
         <!-- Centered Plant Details Section -->
