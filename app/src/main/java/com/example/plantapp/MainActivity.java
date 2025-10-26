@@ -140,8 +140,8 @@ public class MainActivity extends AppCompatActivity {
 
         db.collection("users").document(user.getUid())
                 .set(updates, SetOptions.merge())
-                .addOnSuccessListener(aVoid ->
-                        Toast.makeText(this, "Role set to " + role, Toast.LENGTH_SHORT).show())
+                //.addOnSuccessListener(aVoid ->
+                //        Toast.makeText(this, "Role set to " + role, Toast.LENGTH_SHORT).show())
                 .addOnFailureListener(e ->
                         Toast.makeText(this, "Failed to update role: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
