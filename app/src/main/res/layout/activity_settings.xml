@@ -12,7 +12,6 @@
     android:background="#E8F5E9"
     tools:context=".SettingsActivity">
 
-    <!-- Back button -->
     <ImageButton
         android:id="@+id/BackButton"
         android:layout_width="40dp"
@@ -24,7 +23,6 @@
         android:layout_marginBottom="4dp"
         app:tint="#2E7D32" />
 
-    <!-- Title -->
     <TextView
         android:id="@+id/textViewTitle"
         android:layout_width="wrap_content"
@@ -35,7 +33,6 @@
         android:textSize="28sp"
         android:textStyle="bold" />
 
-    <!-- Username Display -->
     <TextView
         android:id="@+id/UsernameDisplay"
         android:layout_width="match_parent"
@@ -46,7 +43,6 @@
         android:textColor="#1B5E20"
         android:layout_marginBottom="12dp" />
 
-    <!-- Plant Stats -->
     <TextView
         android:id="@+id/PlantCounterText"
         android:layout_width="match_parent"
@@ -57,7 +53,6 @@
         android:textSize="16sp"
         android:layout_marginBottom="6dp" />
 
-    <!-- Rank -->
     <TextView
         android:id="@+id/PlantRankingText"
         android:layout_width="match_parent"
@@ -68,7 +63,6 @@
         android:textSize="16sp"
         android:layout_marginBottom="6dp" />
 
-    <!-- Rank Progress Bar -->
     <ProgressBar
         android:id="@+id/RankProgressBar"
         style="?android:attr/progressBarStyleHorizontal"
@@ -79,7 +73,6 @@
         android:progress="30"
         android:progressDrawable="@drawable/green_progress_bg" />
 
-    <!-- History Section -->
     <TextView
         android:id="@+id/PlantHistoryTitle"
         android:layout_width="wrap_content"
@@ -102,7 +95,6 @@
         android:scrollbars="vertical"
         android:layout_marginBottom="16dp" />
 
-    <!-- Action Buttons -->
     <Button
         android:id="@+id/ClearHistoryButton"
         android:layout_width="match_parent"

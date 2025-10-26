@@ -10,7 +10,6 @@
     android:background="#E8F5E9"
     tools:context=".LoginActivity">
 
-    <!-- App Title -->
     <TextView
         android:id="@+id/textViewTitle"
         android:layout_width="wrap_content"
@@ -21,7 +20,6 @@
         android:textSize="32sp"
         android:textStyle="bold" />
 
-    <!-- Username Field -->
     <EditText
         android:id="@+id/editTextEmail"
         android:layout_width="match_parent"
@@ -32,7 +30,6 @@
         android:padding="12dp"
         android:layout_marginBottom="16dp" />
 
-    <!-- Password Field -->
     <EditText
         android:id="@+id/editTextPassword"
         android:layout_width="match_parent"
@@ -43,7 +40,6 @@
         android:padding="12dp"
         android:layout_marginBottom="24dp" />
 
-    <!-- Login Button -->
     <Button
         android:id="@+id/buttonLogin"
         android:layout_width="match_parent"
@@ -54,7 +50,6 @@
         android:textStyle="bold"
         android:layout_marginBottom="16dp" />
 
-    <!-- Divider Text -->
     <TextView
         android:id="@+id/textViewOr"
         android:layout_width="wrap_content"
@@ -63,7 +58,6 @@
         android:textColor="#4E4E4E"
         android:layout_marginBottom="8dp" />
 
-    <!-- Create Account Button -->
     <Button
         android:id="@+id/buttonCreateAccount"
         android:layout_width="match_parent"

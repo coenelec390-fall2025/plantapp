@@ -16,7 +16,6 @@
         android:orientation="vertical"
         android:gravity="center_horizontal">
 
-        <!-- Toolbar Row -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -46,14 +45,12 @@
                 android:gravity="center" />
         </RelativeLayout>
 
-        <!-- Centered Plant Details Section -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center_horizontal">
 
-            <!-- Plant Image -->
             <ImageView
                 android:id="@+id/PlantImageView"
                 android:layout_width="match_parent"
@@ -66,7 +63,6 @@
                 android:scaleType="centerCrop"
                 app:layout_constraintWidth_percent="0.85" />
 
-            <!-- Common Name -->
             <TextView
                 android:id="@+id/PlantNameText"
                 android:layout_width="wrap_content"
@@ -78,7 +74,6 @@
                 android:layout_marginBottom="4dp"
                 android:gravity="center" />
 
-            <!-- Scientific Name -->
             <TextView
                 android:id="@+id/PlantScientificNameText"
                 android:layout_width="wrap_content"
@@ -88,7 +83,6 @@
                 android:textColor="#388E3C"
                 android:textSize="18sp" />
 
-            <!-- Confidence Bar -->
             <ProgressBar
                 android:id="@+id/ConfidenceBar"
                 style="?android:attr/progressBarStyleHorizontal"
@@ -99,7 +93,6 @@
                 android:progressDrawable="@drawable/green_progress_bg"
                 android:layout_marginBottom="8dp" />
 
-            <!-- Confidence Text -->
             <TextView
                 android:id="@+id/ConfidenceText"
                 android:layout_width="wrap_content"
@@ -110,7 +103,6 @@
                 android:textColor="#2E7D32"
                 android:textSize="16sp" />
 
-            <!-- Description -->
             <TextView
                 android:id="@+id/PlantDescriptionText"
                 android:layout_width="match_parent"
@@ -123,7 +115,6 @@
                 android:textColor="#2E7D32"
                 android:textSize="16sp" />
 
-            <!-- Take Another Picture Button -->
             <Button
                 android:id="@+id/TakeAnotherPictureButton"
                 android:layout_width="match_parent"

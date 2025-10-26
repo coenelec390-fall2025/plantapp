@@ -9,7 +9,6 @@
     android:background="#000000"
     tools:context=".CameraActivity">
 
-    <!-- Placeholder camera preview area -->
     <View
         android:id="@+id/CameraPreview"
         android:layout_width="0dp"
@@ -20,7 +19,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Shutter button (bottom center, like iPhone) -->
     <ImageButton
         android:id="@+id/ShutterButton"
         android:layout_width="90dp"
@@ -34,7 +32,6 @@
         android:elevation="8dp"
         android:visibility="visible" />
 
-    <!-- Back Button (top-left corner) -->
     <ImageButton
         android:id="@+id/BackButton"
         android:layout_width="40dp"
