@@ -49,13 +49,15 @@ public class DescriptionActivity extends AppCompatActivity {
     private boolean loading = false;
     private final AtomicInteger pending = new AtomicInteger(3);
 
+    private String userRole;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_description);
 
-        String userRole  = getIntent().getStringExtra("userRole"); // retrieve user role
+        userRole  = getIntent().getStringExtra("userRole"); // retrieve user role
         String plantName = "Papaya"; // placeholder for now, to be replaced with actual predictions
         if (userRole == null) userRole = "Hiker";
 
@@ -85,7 +87,9 @@ public class DescriptionActivity extends AppCompatActivity {
         // go to camera activity when takeAnotherButton is clicked
         if (takeAnotherBtn != null) {
             takeAnotherBtn.setOnClickListener(v -> {
-                startActivity(new Intent(this, CameraActivity.class));
+                Intent i = new Intent(this, CameraActivity.class);
+                i.putExtra("userRole", userRole);
+                startActivity(i);
                 finish();
             });
         }

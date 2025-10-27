@@ -14,11 +14,15 @@ import androidx.core.view.WindowInsetsCompat;
 
 public class CameraActivity extends AppCompatActivity {
 
+    private String userRole;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_camera);
+
+        userRole = getIntent().getStringExtra("userRole");
 
         // ensures system bar does not overlap app buttons
         View root = findViewById(R.id.main);
