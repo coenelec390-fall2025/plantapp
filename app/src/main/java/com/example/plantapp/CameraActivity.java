@@ -1,5 +1,10 @@
 package com.example.plantapp;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.FirebaseFirestore;
+import java.util.HashMap;
+import java.util.Map;
+
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -89,7 +94,6 @@ public class CameraActivity extends AppCompatActivity {
         shutterButton = findViewById(R.id.ShutterButton);
         ImageButton backButton = findViewById(R.id.BackButton);
 
-        // crash guard: ensure views exist
         if (webView == null || shutterButton == null || backButton == null) {
             Toast.makeText(this, "Layout IDs missing (webView/Shutter/Back). Check activity_camera.xml", Toast.LENGTH_LONG).show();
             finish();
@@ -211,7 +215,6 @@ public class CameraActivity extends AppCompatActivity {
         try {
             if (!wifiManager.isWifiEnabled()) wifiManager.setWifiEnabled(true);
 
-            // remove stale configs for same SSID
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                     != PackageManager.PERMISSION_GRANTED) {
                 requestWifiPermissions();
@@ -247,7 +250,7 @@ public class CameraActivity extends AppCompatActivity {
             wifiManager.reconnect();
 
             webView.postDelayed(() -> {
-                webView.loadUrl(ESP_BASE + "/");
+                webView.loadUrl(ESP_BASE + ":81/stream");
                 Toast.makeText(this, "Connecting to ESP Wi-Fi…", Toast.LENGTH_SHORT).show();
             }, 1500);
         } catch (SecurityException se) {
@@ -297,29 +300,12 @@ public class CameraActivity extends AppCompatActivity {
 
                     byte[] jpeg = resp.body().bytes();
 
-                    runOnUiThread(this::releaseEspNetwork); // switch back to internet
+                    // Leave ESP AP and return to default (school Wi-Fi / LTE)
+                    runOnUiThread(this::releaseEspNetwork);
 
+                    // Wait for validated internet, then upload
                     String fileName = System.currentTimeMillis() + ".jpg";
-                    StorageReference ref = FirebaseStorage.getInstance()
-                            .getReference("captures")
-                            .child(fileName);
-
-                    ref.putBytes(jpeg)
-                            .continueWithTask(t -> {
-                                if (!t.isSuccessful()) throw t.getException();
-                                return ref.getDownloadUrl();
-                            })
-                            .addOnSuccessListener(uri -> {
-                                Intent intent = new Intent(CameraActivity.this, DescriptionActivity.class);
-                                intent.putExtra("userRole", userRole);
-                                intent.putExtra("imageUrl", uri.toString());
-                                startActivity(intent);
-                                finish();
-                            })
-                            .addOnFailureListener(e -> {
-                                Toast.makeText(this, "Upload failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                                shutterButton.setEnabled(true);
-                            });
+                    waitForInternetThenUpload(jpeg, fileName);
                 }
             } catch (Exception e) {
                 runOnUiThread(() -> {
@@ -329,6 +315,76 @@ public class CameraActivity extends AppCompatActivity {
             }
         });
     }
+
+    // Wait until we have real internet before uploading (prevents "object does not exist")
+    private void waitForInternetThenUpload(byte[] jpeg, String fileName) {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        io.execute(() -> {
+            for (int i = 0; i < 20; i++) { // ~10s max wait
+                Network n = cm.getActiveNetwork();
+                if (n != null) {
+                    NetworkCapabilities caps = cm.getNetworkCapabilities(n);
+                    if (caps != null &&
+                            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+
+                        // ✅ Get logged in user
+                        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
+                        // ✅ Store file under captures/<uid>/<fileName>.jpg
+                        StorageReference ref = FirebaseStorage.getInstance()
+                                .getReference("captures")
+                                .child(uid)
+                                .child(fileName);
+
+                        ref.putBytes(jpeg)
+                                .continueWithTask(task -> {
+                                    if (!task.isSuccessful()) throw task.getException();
+                                    return ref.getDownloadUrl();
+                                })
+                                .addOnSuccessListener(uri -> {
+
+                                    // ✅ Save metadata to Firestore
+                                    FirebaseFirestore db = FirebaseFirestore.getInstance();
+                                    Map<String, Object> data = new HashMap<>();
+                                    data.put("url", uri.toString());
+                                    data.put("role", userRole);
+                                    data.put("timestamp", System.currentTimeMillis());
+
+                                    db.collection("users")
+                                            .document(uid)
+                                            .collection("captures")
+                                            .add(data) // auto doc ID
+                                            .addOnSuccessListener(doc -> {
+                                                Intent intent = new Intent(CameraActivity.this, DescriptionActivity.class);
+                                                intent.putExtra("userRole", userRole);
+                                                intent.putExtra("imageUrl", uri.toString());
+                                                startActivity(intent);
+                                                finish();
+                                            })
+                                            .addOnFailureListener(e -> {
+                                                Toast.makeText(CameraActivity.this, "Metadata save failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                                shutterButton.setEnabled(true);
+                                            });
+                                })
+                                .addOnFailureListener(e -> {
+                                    Toast.makeText(CameraActivity.this, "Upload failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                    shutterButton.setEnabled(true);
+                                });
+
+                        return;
+                    }
+                }
+                try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+            }
+            runOnUiThread(() -> {
+                Toast.makeText(CameraActivity.this, "No internet after leaving ESP network", Toast.LENGTH_LONG).show();
+                shutterButton.setEnabled(true);
+            });
+        });
+    }
+
+
 
     // ---------- Lifecycle ----------
     @Override protected void onPause() {
