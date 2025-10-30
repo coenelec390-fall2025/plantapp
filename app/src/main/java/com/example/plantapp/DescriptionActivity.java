@@ -58,13 +58,14 @@ public class DescriptionActivity extends AppCompatActivity {
     private String descriptionText = "";
     private String scientificName  = "";
     private String commonName      = "";
+    private int confidenceScore    = 0;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Runnable loadingRunnable = null;
     private boolean loading = false;
 
-    // wait for: description + scientific + common
-    private final AtomicInteger pending = new AtomicInteger(3);
+    // wait for: description + scientific + common + confidence
+    private final AtomicInteger pending = new AtomicInteger(4);
     private final AtomicBoolean savedOnce = new AtomicBoolean(false);
 
     private String userRole;
@@ -132,7 +133,7 @@ public class DescriptionActivity extends AppCompatActivity {
         downloadImageAndRunGemini(imageUrl, userRole);
     }
 
-    /** Downloads the image from Firebase Storage, decodes to Bitmap, shows it, then runs three Gemini prompts. */
+    /** Downloads the image from Firebase Storage, decodes to Bitmap, shows it, then runs Gemini (4 calls). */
     private void downloadImageAndRunGemini(String url, String role) {
         StorageReference ref = FirebaseStorage.getInstance().getReferenceFromUrl(url);
         final long MAX = 8L * 1024L * 1024L; // 8MB
@@ -144,10 +145,13 @@ public class DescriptionActivity extends AppCompatActivity {
                 Toast.makeText(this, "Failed to decode image", Toast.LENGTH_LONG).show();
                 enableButton(backBtn);
                 enableButton(takeAnotherBtn);
+                // decrement the 4 slots so UI doesn't hang
+                while (pending.getAndDecrement() > 0) {}
+                maybeDeliverAll();
                 return;
             }
 
-            // ✅ show the image the user just took
+            // show the image the user just took
             plantImageView.setImageBitmap(imageBitmap);
 
             // Build Gemini model
@@ -159,7 +163,7 @@ public class DescriptionActivity extends AppCompatActivity {
             // 1) role-specific description (image + text)
             String descPromptText = buildRolePromptNoFormatting(role, "this plant");
             Content descContent = new Content.Builder()
-                    .addImage(imageBitmap)   // Bitmap is required
+                    .addImage(imageBitmap)
                     .addText(descPromptText)
                     .build();
             ListenableFuture<GenerateContentResponse> descFuture = model.generateContent(descContent);
@@ -213,11 +217,33 @@ public class DescriptionActivity extends AppCompatActivity {
                 }
             }, callbackExecutor);
 
+            // 4) confidence score 0–100 (image only)
+            Content confContent = new Content.Builder()
+                    .addImage(imageBitmap)
+                    .addText("On a scale from 0 to 100, how confident are you in your plant identification "
+                            + "from this image? Respond with only the integer number (0-100), no words, no percent sign.")
+                    .build();
+            ListenableFuture<GenerateContentResponse> confFuture = model.generateContent(confContent);
+            Futures.addCallback(confFuture, new FutureCallback<GenerateContentResponse>() {
+                @Override public void onSuccess(GenerateContentResponse result) {
+                    String raw = (result != null && result.getText() != null) ? result.getText().trim() : "0";
+                    confidenceScore = clamp0to100(extractFirstInt(raw));
+                    maybeDeliverAll();
+                }
+                @Override public void onFailure(Throwable t) {
+                    confidenceScore = 0; // fallback
+                    maybeDeliverAll();
+                }
+            }, callbackExecutor);
+
         }).addOnFailureListener(e -> {
             stopLoadingDots();
             Toast.makeText(this, "Failed to download image: " + e.getMessage(), Toast.LENGTH_LONG).show();
             enableButton(backBtn);
             enableButton(takeAnotherBtn);
+            // decrement the 4 slots so UI doesn't hang
+            while (pending.getAndDecrement() > 0) {}
+            maybeDeliverAll();
         });
     }
 
@@ -259,15 +285,15 @@ public class DescriptionActivity extends AppCompatActivity {
                 descriptionTv.setText(formattedDescription);
 
                 confidenceTv.setVisibility(View.VISIBLE);
-                confidenceTv.setText("Confidence: 100%");
                 confidenceBar.setVisibility(View.VISIBLE);
-                confidenceBar.setProgress(100);
+                confidenceBar.setProgress(confidenceScore);
+                confidenceTv.setText("Confidence: " + confidenceScore + "%");
 
                 enableButton(backBtn);
                 enableButton(takeAnotherBtn);
             });
 
-            // ✅ save once after all three are ready
+            // save once after all four are ready
             saveCaptureMetadataIfNeeded();
         }
     }
@@ -286,6 +312,7 @@ public class DescriptionActivity extends AppCompatActivity {
         data.put("commonName", commonName);
         data.put("scientificName", scientificName);
         data.put("description", descriptionText);
+        data.put("confidence", confidenceScore); // <-- NEW
 
         FirebaseFirestore.getInstance()
                 .collection("users")
@@ -297,6 +324,20 @@ public class DescriptionActivity extends AppCompatActivity {
     }
 
     // ---------- helpers ----------
+    private int extractFirstInt(String s) {
+        if (s == null) return 0;
+        Matcher m = Pattern.compile("(\\d{1,3})").matcher(s);
+        if (m.find()) {
+            try { return Integer.parseInt(m.group(1)); }
+            catch (Exception ignored) {}
+        }
+        return 0;
+    }
+
+    private int clamp0to100(int v) {
+        return Math.max(0, Math.min(100, v));
+    }
+
     private void startLoadingDots(TextView target, String base) {
         if (target == null || loading) return;
         loading = true;
