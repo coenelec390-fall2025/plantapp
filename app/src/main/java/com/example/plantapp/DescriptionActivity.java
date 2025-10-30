@@ -49,7 +49,12 @@ public class DescriptionActivity extends AppCompatActivity {
     private boolean loading = false;
     private final AtomicInteger pending = new AtomicInteger(3);
 
-    private String userRole;
+    String userRole = getIntent().getStringExtra("userRole");
+    String imageUrl = getIntent().getStringExtra("imageUrl"); // from Firebase Storage
+
+// Download the image or send the URL directly to your Gemini pipeline,
+// depending on how you’ve set it up (Firebase AI Extensions or custom).
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
