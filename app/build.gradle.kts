@@ -13,7 +13,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -33,7 +32,7 @@ android {
 }
 
 dependencies {
-
+    // AndroidX
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)
@@ -42,24 +41,22 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
-    implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
-    implementation("com.google.firebase:firebase-analytics")
-    // ... other androidx dependencies
 
-    // Import the BoM for the Firebase platform
+    // ---- Firebase (use ONE BoM) ----
     implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
 
-    // Add the dependency for the Firebase AI Logic library
-    // When using the BoM, you don't specify versions in Firebase library dependencies
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-storage")   // <-- needed for Storage
+
+    // Firebase AI (if you're using it)
     implementation("com.google.firebase:firebase-ai")
 
-    // Required for one-shot operations (to use `ListenableFuture` from Guava Android)
+    // ESP32 capture HTTP client
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // Optional: Futures / Reactive if you use them
     implementation("com.google.guava:guava:31.0.1-android")
-
-    // Required for streaming operations (to use `Publisher` from Reactive Streams)
     implementation("org.reactivestreams:reactive-streams:1.0.4")
-
-    implementation("com.google.firebase:firebase-auth")
-    implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
-    implementation("com.google.firebase:firebase-firestore")
 }
