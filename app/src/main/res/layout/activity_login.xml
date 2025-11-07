@@ -38,7 +38,20 @@
         android:inputType="textPassword"
         android:background="@android:drawable/edit_text"
         android:padding="12dp"
-        android:layout_marginBottom="24dp" />
+        android:layout_marginBottom="12dp" />
+
+    <!-- Added reset password text here -->
+    <TextView
+        android:id="@+id/textViewForgotPassword"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Forgot Password?"
+        android:textColor="#1B5E20"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:layout_marginBottom="24dp"
+        android:clickable="true"
+        android:focusable="true" />
 
     <Button
         android:id="@+id/buttonLogin"

@@ -9,6 +9,7 @@ import android.util.Log;
 import android.util.Patterns;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -48,6 +49,29 @@ public class LoginActivity extends AppCompatActivity {
             startActivity(intent);
             //finish();
         });
+
+        TextView tvForgotPassword = findViewById(R.id.textViewForgotPassword);
+        tvForgotPassword.setOnClickListener(v -> {
+            String email = etEmail.getText().toString().trim();
+            if (TextUtils.isEmpty(email)) {
+                etEmail.setError("Enter your email to reset password");
+                etEmail.requestFocus();
+                return;
+            }
+
+            mAuth.sendPasswordResetEmail(email)
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            Toast.makeText(LoginActivity.this,
+                                    "Password reset email sent!", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(LoginActivity.this,
+                                    "Error: " + task.getException().getMessage(),
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    });
+        });
+
     }
 
     // try to login with email and password if they exist
@@ -84,7 +108,7 @@ public class LoginActivity extends AppCompatActivity {
                             Log.d(TAG, "signInWithEmail:success");
                             FirebaseUser user = mAuth.getCurrentUser();
 
-                           // Toast.makeText(LoginActivity.this, "Welcome back!", Toast.LENGTH_SHORT).show();
+                            // Toast.makeText(LoginActivity.this, "Welcome back!", Toast.LENGTH_SHORT).show();
 
                             startActivity(new Intent(LoginActivity.this, MainActivity.class));
                             finish();
@@ -113,8 +137,8 @@ public class LoginActivity extends AppCompatActivity {
         // if already logged in go directly to main activity
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser != null) {
-             startActivity(new Intent(LoginActivity.this, MainActivity.class));
-             finish();
+            startActivity(new Intent(LoginActivity.this, MainActivity.class));
+            finish();
         }
     }
 }
