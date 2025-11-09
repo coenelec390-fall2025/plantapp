@@ -2,12 +2,16 @@ package com.example.plantapp;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -199,9 +203,60 @@ public class CameraActivity extends AppCompatActivity {
                 cm.bindProcessToNetwork(network);
                 espNetwork = network;
                 runOnUiThread(() -> {
-                    webView.loadUrl(ESP_BASE + ":81/stream");
+                    // This commented out code alters camera filters on the esp side
+                    //Can Minorly improve quality but leads to feed crashes and lagging
+                    // Adjust brightness  +2 = maximum brightness to -2 = minimum brightness
+                    /*   new Thread(() -> {
+                        try {
+                            URL url = new URL(ESP_BASE + "/control?var=brightness&val=2");
+                            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                            conn.setRequestMethod("GET");
+                            conn.getResponseCode();
+                            conn.disconnect();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }).start(); */
+
+                    // adjust contrast -2 to 2
+                   /* new Thread(() -> {
+                        try {
+                            URL url = new URL(ESP_BASE + "/control?var=contrast&val=1"); // slight contrast boost
+                            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                            conn.setRequestMethod("GET");
+                            conn.getResponseCode();
+                            conn.disconnect();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }).start(); */
+
+                    //Adjust JPEG quality
+                 /*   new Thread(() -> {
+                        try {
+                            // Example: set quality (0 = highest, 63 = lowest for ESP32-CAM)
+                            URL url = new URL(ESP_BASE + "/control?var=quality&val=3");
+                            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                            conn.setRequestMethod("GET");
+                            conn.getResponseCode();
+                            conn.disconnect();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }).start(); */
+                    //Skyler - changed this block to get rid of black background
+                    String html = "<html><head><style>" +
+                            "body,html {margin:0;padding:0;background:black;overflow:hidden;}" +
+                            "img {width:100vw;height:100vh;object-fit:cover;}" +
+                            "</style></head><body>" +
+                            "<img src='" + ESP_BASE + ":81/stream' />" +
+                            "</body></html>";
+
+                    webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+
                     Toast.makeText(CameraActivity.this, "Connected to ESP Wi-Fi", Toast.LENGTH_SHORT).show();
                 });
+
             }
             @Override public void onUnavailable() {
                 runOnUiThread(() -> Toast.makeText(CameraActivity.this, "ESP Wi-Fi unavailable", Toast.LENGTH_SHORT).show());
