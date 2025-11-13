@@ -47,6 +47,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+
 public class DescriptionActivity extends AppCompatActivity {
 
     private TextView descriptionTv, scientificNameTv, commonNameTv, confidenceTv, plantTitle;
@@ -202,7 +207,7 @@ public class DescriptionActivity extends AppCompatActivity {
             Content commonContent = new Content.Builder()
                     .addImage(imageBitmap)
                     .addText("From this image, what is the common name of this plant? " +
-                            "Respond with only the common name as plain text, no punctuation or formatting.")
+                            "Respond with only the common name, capitalized first letter, as plain text, no punctuation or formatting.")
                     .build();
             ListenableFuture<GenerateContentResponse> commonFuture = model.generateContent(commonContent);
             Futures.addCallback(commonFuture, new FutureCallback<GenerateContentResponse>() {
@@ -299,20 +304,33 @@ public class DescriptionActivity extends AppCompatActivity {
     }
 
     /** Writes the full history doc to Firestore: users/{uid}/captures/{autoId} */
+    /** Writes the full history doc to Firestore: users/{uid}/captures/{autoId} */
     private void saveCaptureMetadataIfNeeded() {
         if (savedOnce.getAndSet(true)) return; // ensure single write
 
         if (FirebaseAuth.getInstance().getCurrentUser() == null) return;
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
 
+        // Get current time once
+        long nowMillis = System.currentTimeMillis();
+
+        // Numeric timestamp (good for sorting / queries)
+        // e.g. 1731514861000
+        // already what you had before
+        String formattedDateTime =
+                new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+                        .format(new Date(nowMillis));
+        // Example: "2025-11-13 14:01"
+
         Map<String, Object> data = new HashMap<>();
         data.put("url", imageUrl);
         data.put("role", userRole);
-        data.put("timestamp", System.currentTimeMillis());
+        data.put("timestamp", nowMillis);          // numeric
+        data.put("dateTime", formattedDateTime);   // human-readable string
         data.put("commonName", commonName);
         data.put("scientificName", scientificName);
         data.put("description", descriptionText);
-        data.put("confidence", confidenceScore); // <-- NEW
+        data.put("confidence", confidenceScore);
 
         FirebaseFirestore.getInstance()
                 .collection("users")
@@ -320,8 +338,11 @@ public class DescriptionActivity extends AppCompatActivity {
                 .collection("captures")
                 .add(data)
                 .addOnFailureListener(e ->
-                        Toast.makeText(this, "Failed to save history: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                        Toast.makeText(this,
+                                "Failed to save history: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show());
     }
+
 
     // ---------- helpers ----------
     private int extractFirstInt(String s) {
