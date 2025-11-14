@@ -85,8 +85,16 @@ public class SettingsActivity extends AppCompatActivity {
         historyAdapter = new HistoryAdapter(historyItems);
         historyListView.setAdapter(historyAdapter);
 
-        // show username + plant history
+        // load username once
         loadUsername();
+        // DO NOT call loadHistory() here; we do it in onResume so it refreshes after delete
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Reload history every time we return to this screen,
+        // so deleted items disappear immediately.
         loadHistory();
     }
 
@@ -146,8 +154,7 @@ public class SettingsActivity extends AppCompatActivity {
                         Long confLong = doc.getLong("confidence");
                         int confidence = confLong != null ? confLong.intValue() : 0;
 
-                        // Some old docs might be missing fields, handle nulls
-                        if (imageUrl == null) continue; // can't open description without image
+                        if (imageUrl == null) continue;
 
                         PlantCapture item = new PlantCapture(
                                 docId,
@@ -186,7 +193,6 @@ public class SettingsActivity extends AppCompatActivity {
         } else if (count < 3) {
             // Stage 1: Beginner, filling bar over first 3 plants
             rank = "You are a Plant Beginner";
-            // 1..2 -> progress 33..66 (approx)
             progress = (int) Math.round((count / 3.0) * 100.0);
         } else if (count < 6) {
             // Stage 2: Amateur, bar reset, 3 plants to fill
@@ -200,10 +206,8 @@ public class SettingsActivity extends AppCompatActivity {
             if (stageCount <= 0) {
                 progress = 0;
             } else if (stageCount < 4) {
-                // 1..3 -> fill up
                 progress = (int) Math.round((stageCount / 4.0) * 100.0);
             } else {
-                // 4+ plants as Pro -> bar stays full forever
                 progress = 100;
             }
         }
@@ -228,7 +232,6 @@ public class SettingsActivity extends AppCompatActivity {
         String uid = user.getUid();
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-        // delete each capture doc
         for (PlantCapture item : historyItems) {
             db.collection("users")
                     .document(uid)
@@ -292,10 +295,9 @@ public class SettingsActivity extends AppCompatActivity {
                         ViewGroup.LayoutParams.WRAP_CONTENT));
                 btn.setAllCaps(false);
                 btn.setPadding(20, 10, 20, 10);
-                // Match style roughly to your other green buttons
                 btn.setBackgroundTintList(
                         getResources().getColorStateList(android.R.color.holo_green_light, null));
-                btn.setTextColor(0xFF1B5E20); // dark green text
+                btn.setTextColor(0xFF1B5E20);
             }
 
             PlantCapture item = getItem(position);
@@ -310,7 +312,6 @@ public class SettingsActivity extends AppCompatActivity {
                         ? item.dateTime
                         : "";
 
-                // Label: Plant • Role • Date
                 StringBuilder label = new StringBuilder();
                 label.append(name).append(" • ").append(role);
                 if (!dt.isEmpty()) {
@@ -319,8 +320,8 @@ public class SettingsActivity extends AppCompatActivity {
                 btn.setText(label.toString());
 
                 btn.setOnClickListener(v -> {
-                    // Open HistoryDescriptionActivity for this capture, using saved fields
                     Intent intent = new Intent(SettingsActivity.this, HistoryDescriptionActivity.class);
+                    intent.putExtra("docId", item.docId);
                     intent.putExtra("userRole", item.role);
                     intent.putExtra("imageUrl", item.imageUrl);
                     intent.putExtra("commonName", item.commonName);

@@ -18,6 +18,9 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
@@ -26,7 +29,7 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
     private TextView descriptionTv, scientificNameTv, commonNameTv, confidenceTv, plantTitle;
     private ProgressBar confidenceBar;
     private ImageButton backBtn;
-    private Button takeAnotherBtn;
+    private Button deleteBtn;   // reusing TakeAnotherPictureButton as delete
     private ImageView plantImageView;
 
     private String userRole;
@@ -36,6 +39,7 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
     private String description;
     private int confidence;
     private String dateTime;
+    private String docId;       // Firestore document ID for this history item
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +49,7 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
 
         // ---- Get extras ----
         Intent i = getIntent();
+        docId = i.getStringExtra("docId");
         userRole = i.getStringExtra("userRole");
         imageUrl = i.getStringExtra("imageUrl");
         commonName = i.getStringExtra("commonName");
@@ -74,23 +79,24 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         confidenceTv      = findViewById(R.id.ConfidenceText);
         confidenceBar     = findViewById(R.id.ConfidenceBar);
         backBtn           = findViewById(R.id.BackButton);
-        takeAnotherBtn    = findViewById(R.id.TakeAnotherPictureButton);
+        deleteBtn         = findViewById(R.id.TakeAnotherPictureButton); // reuse as delete button
         plantTitle        = findViewById(R.id.PlantTitle);
         plantImageView    = findViewById(R.id.PlantImageView);
 
-        // ---- Hide "Take Another Picture" button ----
-        takeAnotherBtn.setVisibility(View.GONE);
-
-        // ---- Title ----
+        // ---- Set title ----
         if (dateTime != null && !dateTime.isEmpty()) {
             plantTitle.setText("Plant Description\n" + userRole + "\n" + dateTime);
         } else {
             plantTitle.setText("Plant Description\n" + userRole);
         }
 
-
         // ---- Back button ----
         backBtn.setOnClickListener(v -> finish());
+
+        // ---- Configure delete button ----
+        deleteBtn.setVisibility(View.VISIBLE);
+        deleteBtn.setText("Delete from History");
+        deleteBtn.setOnClickListener(v -> deleteCurrentHistoryEntry());
 
         // ---- Set UI text ----
         commonNameTv.setText(commonName != null ? commonName : "Unknown Plant");
@@ -104,6 +110,48 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
 
         // ---- Load image ----
         loadImageFromStorage(imageUrl);
+    }
+
+    /** Delete this history entry from Firestore (and try to delete its image from Storage). */
+    private void deleteCurrentHistoryEntry() {
+        if (docId == null || docId.isEmpty()) {
+            Toast.makeText(this, "Cannot delete: missing history ID", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        deleteBtn.setEnabled(false);
+
+        String uid = user.getUid();
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        // Delete the Firestore document
+        db.collection("users")
+                .document(uid)
+                .collection("captures")
+                .document(docId)
+                .delete()
+                .addOnSuccessListener(aVoid -> {
+                    // Try to also delete the image from Storage (optional, best-effort)
+                    try {
+                        StorageReference ref = FirebaseStorage.getInstance().getReferenceFromUrl(imageUrl);
+                        ref.delete(); // no need to block on this
+                    } catch (Exception ignored) {}
+
+                    Toast.makeText(this, "Deleted from history", Toast.LENGTH_SHORT).show();
+                    finish(); // go back to SettingsActivity
+                })
+                .addOnFailureListener(e -> {
+                    deleteBtn.setEnabled(true);
+                    Toast.makeText(this,
+                            "Failed to delete: " + e.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                });
     }
 
     private void loadImageFromStorage(String url) {
