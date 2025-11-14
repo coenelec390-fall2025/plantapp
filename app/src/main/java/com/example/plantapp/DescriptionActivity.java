@@ -51,7 +51,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-
 public class DescriptionActivity extends AppCompatActivity {
 
     private TextView descriptionTv, scientificNameTv, commonNameTv, confidenceTv, plantTitle;
@@ -76,6 +75,9 @@ public class DescriptionActivity extends AppCompatActivity {
     private String userRole;
     private String imageUrl;     // Firebase Storage download URL
     private Bitmap imageBitmap;  // decoded for UI + Gemini
+
+    // NEW: track whether this was recognized as a plant
+    private boolean isPlant = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -138,7 +140,7 @@ public class DescriptionActivity extends AppCompatActivity {
         downloadImageAndRunGemini(imageUrl, userRole);
     }
 
-    /** Downloads the image from Firebase Storage, decodes to Bitmap, shows it, then runs Gemini (4 calls). */
+    /** Downloads the image from Firebase Storage, decodes to Bitmap, shows it, then runs Gemini. */
     private void downloadImageAndRunGemini(String url, String role) {
         StorageReference ref = FirebaseStorage.getInstance().getReferenceFromUrl(url);
         final long MAX = 8L * 1024L * 1024L; // 8MB
@@ -165,79 +167,62 @@ public class DescriptionActivity extends AppCompatActivity {
                     .generativeModel("gemini-2.5-flash");
             GenerativeModelFutures model = GenerativeModelFutures.from(ai);
 
-            // 1) role-specific description (image + text)
-            String descPromptText = buildRolePromptNoFormatting(role, "this plant");
-            Content descContent = new Content.Builder()
+            // ---- FIRST: check if the image is actually a plant ----
+            Content checkContent = new Content.Builder()
                     .addImage(imageBitmap)
-                    .addText(descPromptText)
+                    .addText("Is the main subject of this image a plant (tree, flower, leaf, cactus, moss, etc.)? " +
+                            "Answer with exactly YES or NO.")
                     .build();
-            ListenableFuture<GenerateContentResponse> descFuture = model.generateContent(descContent);
-            Futures.addCallback(descFuture, new FutureCallback<GenerateContentResponse>() {
-                @Override public void onSuccess(GenerateContentResponse result) {
-                    String raw = (result != null && result.getText() != null) ? result.getText().trim() : "";
-                    descriptionText = sanitizePlainTextKeepDashes(raw);
-                    maybeDeliverAll();
-                }
-                @Override public void onFailure(Throwable t) {
-                    descriptionText = "Error: " + t.getMessage();
-                    maybeDeliverAll();
-                }
-            }, callbackExecutor);
 
-            // 2) scientific name from the image
-            Content sciContent = new Content.Builder()
-                    .addImage(imageBitmap)
-                    .addText("From this image, what is the scientific name (Genus species) of this plant? " +
-                            "Respond with only the scientific name as plain text, no punctuation or formatting.")
-                    .build();
-            ListenableFuture<GenerateContentResponse> sciFuture = model.generateContent(sciContent);
-            Futures.addCallback(sciFuture, new FutureCallback<GenerateContentResponse>() {
-                @Override public void onSuccess(GenerateContentResponse result) {
-                    String raw = result != null && result.getText() != null ? result.getText().trim() : "";
-                    scientificName = cleanScientificName(sanitizePlainText(raw));
-                    maybeDeliverAll();
-                }
-                @Override public void onFailure(Throwable t) {
-                    scientificName = "Error getting scientific name";
-                    maybeDeliverAll();
-                }
-            }, callbackExecutor);
+            ListenableFuture<GenerateContentResponse> checkFuture =
+                    model.generateContent(checkContent);
 
-            // 3) common name from the image
-            Content commonContent = new Content.Builder()
-                    .addImage(imageBitmap)
-                    .addText("From this image, what is the common name of this plant? " +
-                            "Respond with only the common name, capitalized first letter, as plain text, no punctuation or formatting.")
-                    .build();
-            ListenableFuture<GenerateContentResponse> commonFuture = model.generateContent(commonContent);
-            Futures.addCallback(commonFuture, new FutureCallback<GenerateContentResponse>() {
-                @Override public void onSuccess(GenerateContentResponse result) {
-                    String raw = result != null && result.getText() != null ? result.getText().trim() : "";
-                    commonName = cleanCommonName(sanitizePlainText(raw));
-                    maybeDeliverAll();
-                }
-                @Override public void onFailure(Throwable t) {
-                    commonName = "Error getting common name";
-                    maybeDeliverAll();
-                }
-            }, callbackExecutor);
+            Futures.addCallback(checkFuture, new FutureCallback<GenerateContentResponse>() {
+                @Override
+                public void onSuccess(GenerateContentResponse result) {
+                    String raw = (result != null && result.getText() != null)
+                            ? result.getText().trim()
+                            : "";
+                    String answer = raw.toUpperCase(Locale.getDefault());
 
-            // 4) confidence score 0–100 (image only)
-            Content confContent = new Content.Builder()
-                    .addImage(imageBitmap)
-                    .addText("On a scale from 0 to 100, how confident are you in your plant identification "
-                            + "from this image? Respond with only the integer number (0-100), no words, no percent sign.")
-                    .build();
-            ListenableFuture<GenerateContentResponse> confFuture = model.generateContent(confContent);
-            Futures.addCallback(confFuture, new FutureCallback<GenerateContentResponse>() {
-                @Override public void onSuccess(GenerateContentResponse result) {
-                    String raw = (result != null && result.getText() != null) ? result.getText().trim() : "0";
-                    confidenceScore = clamp0to100(extractFirstInt(raw));
-                    maybeDeliverAll();
+                    if (answer.startsWith("N")) {
+                        // NOT A PLANT
+                        isPlant = false;
+
+                        commonName = "Not a plant";
+                        scientificName = "";
+                        descriptionText = "This image has not been recognized as a plant. Please retake the picture and try again.";
+                        confidenceScore = 0;
+
+                        // Delete the image from Storage so nothing is saved
+                        deleteImageFromStorage(imageUrl);
+
+                        runOnUiThread(() -> {
+                            stopLoadingDots();
+                            commonNameTv.setText(commonName);
+                            scientificNameTv.setText(scientificName);
+                            descriptionTv.setText(descriptionText);
+                            confidenceTv.setVisibility(View.VISIBLE);
+                            confidenceBar.setVisibility(View.VISIBLE);
+                            confidenceBar.setProgress(confidenceScore);
+                            confidenceTv.setText("Confidence: " + confidenceScore + "%");
+                            enableButton(backBtn);
+                            enableButton(takeAnotherBtn);
+                        });
+
+                        // IMPORTANT: do NOT save non-plant captures to Firestore
+                    } else {
+                        // Looks like a plant -> run your normal 4-call pipeline
+                        isPlant = true;
+                        runPlantDetailCalls(model, role, callbackExecutor);
+                    }
                 }
-                @Override public void onFailure(Throwable t) {
-                    confidenceScore = 0; // fallback
-                    maybeDeliverAll();
+
+                @Override
+                public void onFailure(Throwable t) {
+                    // If the plant check fails, just fall back to the normal flow
+                    isPlant = true;
+                    runPlantDetailCalls(model, role, callbackExecutor);
                 }
             }, callbackExecutor);
 
@@ -250,6 +235,88 @@ public class DescriptionActivity extends AppCompatActivity {
             while (pending.getAndDecrement() > 0) {}
             maybeDeliverAll();
         });
+    }
+
+    /** Run the 4 existing Gemini calls assuming the image is a plant. */
+    private void runPlantDetailCalls(GenerativeModelFutures model, String role, Executor callbackExecutor) {
+        // Reset pending count for this flow
+        pending.set(4);
+
+        // 1) role-specific description (image + text)
+        String descPromptText = buildRolePromptNoFormatting(role, "this plant");
+        Content descContent = new Content.Builder()
+                .addImage(imageBitmap)
+                .addText(descPromptText)
+                .build();
+        ListenableFuture<GenerateContentResponse> descFuture = model.generateContent(descContent);
+        Futures.addCallback(descFuture, new FutureCallback<GenerateContentResponse>() {
+            @Override public void onSuccess(GenerateContentResponse result) {
+                String raw = (result != null && result.getText() != null) ? result.getText().trim() : "";
+                descriptionText = sanitizePlainTextKeepDashes(raw);
+                maybeDeliverAll();
+            }
+            @Override public void onFailure(Throwable t) {
+                descriptionText = "Error: " + t.getMessage();
+                maybeDeliverAll();
+            }
+        }, callbackExecutor);
+
+        // 2) scientific name from the image
+        Content sciContent = new Content.Builder()
+                .addImage(imageBitmap)
+                .addText("From this image, what is the scientific name (Genus species) of this plant? " +
+                        "Respond with only the scientific name as plain text, no punctuation or formatting.")
+                .build();
+        ListenableFuture<GenerateContentResponse> sciFuture = model.generateContent(sciContent);
+        Futures.addCallback(sciFuture, new FutureCallback<GenerateContentResponse>() {
+            @Override public void onSuccess(GenerateContentResponse result) {
+                String raw = result != null && result.getText() != null ? result.getText().trim() : "";
+                scientificName = cleanScientificName(sanitizePlainText(raw));
+                maybeDeliverAll();
+            }
+            @Override public void onFailure(Throwable t) {
+                scientificName = "Error getting scientific name";
+                maybeDeliverAll();
+            }
+        }, callbackExecutor);
+
+        // 3) common name from the image
+        Content commonContent = new Content.Builder()
+                .addImage(imageBitmap)
+                .addText("From this image, what is the common name of this plant? " +
+                        "Respond with only the common name, capitalized first letter, as plain text, no punctuation or formatting.")
+                .build();
+        ListenableFuture<GenerateContentResponse> commonFuture = model.generateContent(commonContent);
+        Futures.addCallback(commonFuture, new FutureCallback<GenerateContentResponse>() {
+            @Override public void onSuccess(GenerateContentResponse result) {
+                String raw = result != null && result.getText() != null ? result.getText().trim() : "";
+                commonName = cleanCommonName(sanitizePlainText(raw));
+                maybeDeliverAll();
+            }
+            @Override public void onFailure(Throwable t) {
+                commonName = "Error getting common name";
+                maybeDeliverAll();
+            }
+        }, callbackExecutor);
+
+        // 4) confidence score 0–100 (image only)
+        Content confContent = new Content.Builder()
+                .addImage(imageBitmap)
+                .addText("On a scale from 0 to 100, how confident are you in your plant identification "
+                        + "from this image? Respond with only the integer number (0-100), no words, no percent sign.")
+                .build();
+        ListenableFuture<GenerateContentResponse> confFuture = model.generateContent(confContent);
+        Futures.addCallback(confFuture, new FutureCallback<GenerateContentResponse>() {
+            @Override public void onSuccess(GenerateContentResponse result) {
+                String raw = (result != null && result.getText() != null) ? result.getText().trim() : "0";
+                confidenceScore = clamp0to100(extractFirstInt(raw));
+                maybeDeliverAll();
+            }
+            @Override public void onFailure(Throwable t) {
+                confidenceScore = 0; // fallback
+                maybeDeliverAll();
+            }
+        }, callbackExecutor);
     }
 
     // ---------- role prompt ----------
@@ -298,29 +365,26 @@ public class DescriptionActivity extends AppCompatActivity {
                 enableButton(takeAnotherBtn);
             });
 
-            // save once after all four are ready
+            // save once after all four are ready (ONLY if it is a plant)
             saveCaptureMetadataIfNeeded();
         }
     }
 
     /** Writes the full history doc to Firestore: users/{uid}/captures/{autoId} */
-    /** Writes the full history doc to Firestore: users/{uid}/captures/{autoId} */
     private void saveCaptureMetadataIfNeeded() {
+        // Do not save non-plant captures
+        if (!isPlant) return;
+
         if (savedOnce.getAndSet(true)) return; // ensure single write
 
         if (FirebaseAuth.getInstance().getCurrentUser() == null) return;
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
 
-        // Get current time once
         long nowMillis = System.currentTimeMillis();
 
-        // Numeric timestamp (good for sorting / queries)
-        // e.g. 1731514861000
-        // already what you had before
         String formattedDateTime =
                 new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
                         .format(new Date(nowMillis));
-        // Example: "2025-11-13 14:01"
 
         Map<String, Object> data = new HashMap<>();
         data.put("url", imageUrl);
@@ -343,6 +407,14 @@ public class DescriptionActivity extends AppCompatActivity {
                                 Toast.LENGTH_SHORT).show());
     }
 
+    // Delete image from Storage best-effort (for non-plant images)
+    private void deleteImageFromStorage(String url) {
+        if (url == null || url.isEmpty()) return;
+        try {
+            StorageReference ref = FirebaseStorage.getInstance().getReferenceFromUrl(url);
+            ref.delete();
+        } catch (Exception ignored) {}
+    }
 
     // ---------- helpers ----------
     private int extractFirstInt(String s) {
