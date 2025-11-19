@@ -16,6 +16,7 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -61,9 +62,6 @@ public class DescriptionActivity extends AppCompatActivity {
     private Button takeAnotherBtn;
     private ImageView plantImageView;
 
-    // NEW: inline alternates sentence
-    private TextView alternatesInlineTv;
-
     private String descriptionText = "";
     private String scientificName  = "";
     private String commonName      = "";
@@ -73,15 +71,15 @@ public class DescriptionActivity extends AppCompatActivity {
     private Runnable loadingRunnable = null;
     private boolean loading = false;
 
-    // wait for: description + scientific + common + confidence + alternates (NEW)
+    // wait for: description + scientific + common + confidence + alternates
     private final AtomicInteger pending = new AtomicInteger(5);
     private final AtomicBoolean savedOnce = new AtomicBoolean(false);
 
     private String userRole;
-    private String imageUrl;     // Firebase Storage download URL
-    private Bitmap imageBitmap;  // decoded for UI + Gemini
+    private String imageUrl;
+    private Bitmap imageBitmap;
 
-    // NEW: simple candidate model + list
+    // alternates model + list
     static class Candidate {
         final String commonName, scientificName;
         final int confidence;
@@ -89,13 +87,90 @@ public class DescriptionActivity extends AppCompatActivity {
     }
     private final List<Candidate> alternates = new ArrayList<>();
 
+    // ===== Expanded leak guards =====
+    private static final Pattern LEAK_HEAD = Pattern.compile(
+            "^(?:\\s*(?i:(THOUGHTS?|THOUGHT|ANALYSIS|ANALYZE|REASONING|REASON|THINKING|THINK|PLAN|REFLECTION|CHAIN[- ]?OF[- ]?THOUGHT))\\s*:?\\b.*\\R)+",
+            Pattern.DOTALL);
+    private static final Pattern LEAK_LINES = Pattern.compile(
+            "(?m)^(?i:(THOUGHTS?|THOUGHT|ANALYSIS|ANALYZE|REASONING|REASON|THINKING|THINK|PLAN|REFLECTION|CHAIN[- ]?OF[- ]?THOUGHT))\\s*:?\\b.*\\R?");
+    private static final Pattern LETS_THINK = Pattern.compile("(?i)\\b(let'?s\\s+think|step\\s+by\\s+step)\\b.*");
+
+    // ===== Instruction-echo filter =====
+    private static final Pattern INSTRUCTION_ECHO_LINES = Pattern.compile(
+            "(?mi)^(?:do\\s*not\\s*include.*|never\\s*output.*|plain\\s*text\\s*only.*|respond\\s*with\\s*only.*|no\\s*prose.*|no\\s*code\\s*fences.*)\\s*$"
+    );
+
+    // ===== Allow-list + hard strip for names =====
+    private static final Pattern NAME_ALLOW = Pattern.compile("^[A-Za-z][A-Za-z .'-]{0,63}$");
+
+    private String stripThoughtPreamble(String s) {
+        if (s == null) return "";
+        String t = LEAK_HEAD.matcher(s).replaceFirst("");
+        t = LEAK_LINES.matcher(t).replaceAll("");
+        t = LETS_THINK.matcher(t).replaceAll("");
+        return t.trim();
+    }
+    private boolean startsWithLeak(String s) {
+        if (s == null) return false;
+        String t = s.trim();
+        if (t.matches("(?is)^(THOUGHTS?|THOUGHT|ANALYSIS|ANALYZE|REASONING|REASON|THINKING|THINK|PLAN|REFLECTION|CHAIN[- ]?OF[- ]?THOUGHT)\\s*:?\\b.*")) return true;
+        if (t.matches("(?is)^```[a-zA-Z0-9]*\\s*(THOUGHTS?|THOUGHT|ANALYSIS|REASONING|THINKING|CHAIN[- ]?OF[- ]?THOUGHT)\\b.*")) return true;
+        if (t.matches("(?is)^let'?s\\s+think.*")) return true;
+        return false;
+    }
+    private String hardStripMetaLabels(String s) {
+        if (s == null) return "";
+        s = s.replaceAll("(?mi)^(THOUGHTS?|THOUGHT|ANALYSIS|REASONING|THINKING|PLAN|REFLECTION|CHAIN[- ]?OF[- ]?THOUGHT)\\s*:.*$", "");
+        s = s.replaceAll("(?i)\\b(let'?s\\s+think|step\\s+by\\s+step)\\b.*", "");
+        return s.trim();
+    }
+    private String stripInstructionEcho(String s) {
+        if (s == null) return "";
+        String t = INSTRUCTION_ECHO_LINES.matcher(s).replaceAll("");
+        return t.trim();
+    }
+    private String gateNameOrFallback(String candidate, String fallback) {
+        if (candidate == null) return fallback;
+        String c = candidate.trim();
+        if (c.contains("\n")) {
+            for (String line : c.split("\\R")) {
+                String ln = line.trim();
+                if (!ln.isEmpty()) { c = ln; break; }
+            }
+        }
+        if (c.matches("(?is)^(THOUGHTS?|THOUGHT|ANALYSIS|REASONING|THINKING|PLAN|REFLECTION|CHAIN[- ]?OF[- ]?THOUGHT)\\s*:.*"))
+            return fallback;
+        if (!NAME_ALLOW.matcher(c).matches())
+            return fallback;
+        return c;
+    }
+
+    private interface OnText { void accept(String text); }
+
+    // Retry wrapper
+    private void generateTextWithRetry(GenerativeModelFutures model, Content content, int maxRetries, OnText onText) {
+        Executor cb = MoreExecutors.directExecutor();
+        ListenableFuture<GenerateContentResponse> fut = model.generateContent(content);
+        Futures.addCallback(fut, new FutureCallback<GenerateContentResponse>() {
+            @Override public void onSuccess(GenerateContentResponse r) {
+                String raw = (r != null && r.getText() != null) ? r.getText() : "";
+                if (startsWithLeak(raw) && maxRetries > 0) {
+                    generateTextWithRetry(model, content, maxRetries - 1, onText);
+                    return;
+                }
+                String cleaned = stripThoughtPreamble(raw);
+                onText.accept(cleaned);
+            }
+            @Override public void onFailure(Throwable t) { onText.accept(""); }
+        }, cb);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_description);
 
-        // ---- intent extras ----
         userRole = getIntent().getStringExtra("userRole");
         imageUrl = getIntent().getStringExtra("imageUrl");
         if (userRole == null) userRole = "Hiker";
@@ -105,7 +180,6 @@ public class DescriptionActivity extends AppCompatActivity {
             return;
         }
 
-        // avoid system bars overlap
         View root = findViewById(R.id.main);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -113,7 +187,6 @@ public class DescriptionActivity extends AppCompatActivity {
             return insets;
         });
 
-        // ---- UI refs ----
         descriptionTv     = findViewById(R.id.PlantDescriptionText);
         scientificNameTv  = findViewById(R.id.PlantScientificNameText);
         commonNameTv      = findViewById(R.id.PlantNameText);
@@ -123,9 +196,6 @@ public class DescriptionActivity extends AppCompatActivity {
         takeAnotherBtn    = findViewById(R.id.TakeAnotherPictureButton);
         plantTitle        = findViewById(R.id.PlantTitle);
         plantImageView    = findViewById(R.id.PlantImageView);
-
-        // NEW: alternates inline TextView
-        alternatesInlineTv = findViewById(R.id.AlternatesInlineText);
 
         plantTitle.setText("Plant Description\n" + userRole);
 
@@ -149,14 +219,12 @@ public class DescriptionActivity extends AppCompatActivity {
 
         startLoadingDots(commonNameTv, "Loading");
 
-        // ---- download bytes -> set ImageView -> run Gemini ----
         downloadImageAndRunGemini(imageUrl, userRole);
     }
 
-    /** Downloads the image from Firebase Storage, decodes to Bitmap, shows it, then runs Gemini (5 calls). */
     private void downloadImageAndRunGemini(String url, String role) {
         StorageReference ref = FirebaseStorage.getInstance().getReferenceFromUrl(url);
-        final long MAX = 8L * 1024L * 1024L; // 8MB
+        final long MAX = 8L * 1024L * 1024L;
 
         ref.getBytes(MAX).addOnSuccessListener(bytes -> {
             imageBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
@@ -165,127 +233,97 @@ public class DescriptionActivity extends AppCompatActivity {
                 Toast.makeText(this, "Failed to decode image", Toast.LENGTH_LONG).show();
                 enableButton(backBtn);
                 enableButton(takeAnotherBtn);
-                // decrement the 5 slots so UI doesn't hang
                 while (pending.getAndDecrement() > 0) {}
                 maybeDeliverAll();
                 return;
             }
 
-            // show the image the user just took
             plantImageView.setImageBitmap(imageBitmap);
 
-            // Build Gemini model
-            Executor callbackExecutor = MoreExecutors.directExecutor();
             GenerativeModel ai = FirebaseAI.getInstance(GenerativeBackend.googleAI())
                     .generativeModel("gemini-2.5-flash");
             GenerativeModelFutures model = GenerativeModelFutures.from(ai);
 
-            // 1) role-specific description (image + text)
-            String descPromptText = buildRolePromptNoFormatting(role, "this plant");
+            // 1) Description
+            String descPromptText =
+                    buildRolePromptNoFormatting(role, "this plant") +
+                            " Never output lines starting with THOUGHT:, THOUGHTS:, ANALYSIS:, REASONING:, or similar. Do not include meta text.";
             Content descContent = new Content.Builder()
                     .addImage(imageBitmap)
                     .addText(descPromptText)
                     .build();
-            ListenableFuture<GenerateContentResponse> descFuture = model.generateContent(descContent);
-            Futures.addCallback(descFuture, new FutureCallback<GenerateContentResponse>() {
-                @Override public void onSuccess(GenerateContentResponse result) {
-                    String raw = (result != null && result.getText() != null) ? result.getText().trim() : "";
-                    descriptionText = sanitizePlainTextKeepDashes(raw);
-                    maybeDeliverAll();
-                }
-                @Override public void onFailure(Throwable t) {
-                    descriptionText = "Error: " + t.getMessage();
-                    maybeDeliverAll();
-                }
-            }, callbackExecutor);
+            generateTextWithRetry(model, descContent, 1, cleaned -> {
+                descriptionText = sanitizePlainTextKeepDashes(cleaned);
+                maybeDeliverAll();
+            });
 
-            // 2) scientific name from the image
+            // 2) Scientific name
             Content sciContent = new Content.Builder()
                     .addImage(imageBitmap)
-                    .addText("From this image, what is the scientific name (Genus species) of this plant? " +
-                            "Respond with only the scientific name as plain text, no punctuation or formatting.")
-                    .build();
-            ListenableFuture<GenerateContentResponse> sciFuture = model.generateContent(sciContent);
-            Futures.addCallback(sciFuture, new FutureCallback<GenerateContentResponse>() {
-                @Override public void onSuccess(GenerateContentResponse result) {
-                    String raw = result != null && result.getText() != null ? result.getText().trim() : "";
-                    scientificName = cleanScientificName(sanitizePlainText(raw));
-                    maybeDeliverAll();
-                }
-                @Override public void onFailure(Throwable t) {
-                    scientificName = "Error getting scientific name";
-                    maybeDeliverAll();
-                }
-            }, callbackExecutor);
+                    .addText(
+                            "From this image, what is the scientific name (Genus species) of this plant? " +
+                                    "Respond with only the scientific name as plain text, no punctuation or formatting. " +
+                                    "Do not include analysis, steps, thoughts, or meta labels."
+                    ).build();
+            generateTextWithRetry(model, sciContent, 1, cleaned -> {
+                String raw = (cleaned == null) ? "" : cleaned.trim();
+                scientificName = cleanScientificName(sanitizePlainText(raw));
+                scientificName = gateNameOrFallback(scientificName, "");
+                maybeDeliverAll();
+            });
 
-            // 3) common name from the image
+            // 3) Common name — STRICT JSON
             Content commonContent = new Content.Builder()
                     .addImage(imageBitmap)
-                    .addText("From this image, what is the common name of this plant? " +
-                            "Respond with only the common name as plain text, no punctuation or formatting.")
-                    .build();
-            ListenableFuture<GenerateContentResponse> commonFuture = model.generateContent(commonContent);
-            Futures.addCallback(commonFuture, new FutureCallback<GenerateContentResponse>() {
-                @Override public void onSuccess(GenerateContentResponse result) {
-                    String raw = result != null && result.getText() != null ? result.getText().trim() : "";
-                    commonName = cleanCommonName(sanitizePlainText(raw));
-                    maybeDeliverAll();
-                }
-                @Override public void onFailure(Throwable t) {
-                    commonName = "Error getting common name";
-                    maybeDeliverAll();
-                }
-            }, callbackExecutor);
+                    .addText(
+                            "From this image, return STRICT JSON only with the common name of this plant. " +
+                                    "Schema: {\"common_name\":\"...\"}. No prose, no code fences, no analysis, no thoughts."
+                    ).build();
+            generateTextWithRetry(model, commonContent, 1, cleaned -> {
+                String raw = (cleaned == null) ? "" : cleaned.trim();
+                String parsed = parseCommonNameJson(raw);
+                if (parsed.isEmpty()) parsed = cleanCommonName(sanitizePlainText(raw));
+                parsed = stripInstructionEcho(parsed);                  // NEW
+                commonName = gateNameOrFallback(parsed, "Unknown plant");
+                maybeDeliverAll();
+            });
 
-            // 4) confidence score 0–100 (image only)
+            // 4) Confidence
             Content confContent = new Content.Builder()
                     .addImage(imageBitmap)
-                    .addText("On a scale from 0 to 100, how confident are you in your plant identification " +
-                            "from this image? Respond with only the integer number (0-100), no words, no percent sign.")
-                    .build();
-            ListenableFuture<GenerateContentResponse> confFuture = model.generateContent(confContent);
-            Futures.addCallback(confFuture, new FutureCallback<GenerateContentResponse>() {
-                @Override public void onSuccess(GenerateContentResponse result) {
-                    String raw = (result != null && result.getText() != null) ? result.getText().trim() : "0";
-                    confidenceScore = clamp0to100(extractFirstInt(raw));
-                    maybeDeliverAll();
-                }
-                @Override public void onFailure(Throwable t) {
-                    confidenceScore = 0; // fallback
-                    maybeDeliverAll();
-                }
-            }, callbackExecutor);
+                    .addText(
+                            "On a scale from 0 to 100, how confident are you in your plant identification from this image? " +
+                                    "Respond with only the integer number (0-100), no words, no percent sign. " +
+                                    "Do not include analysis, steps, thoughts, or meta labels."
+                    ).build();
+            generateTextWithRetry(model, confContent, 1, cleaned -> {
+                String raw = (cleaned == null || cleaned.isEmpty()) ? "0" : cleaned.trim();
+                confidenceScore = clamp0to100(extractFirstInt(raw));
+                maybeDeliverAll();
+            });
 
-            // 5) NEW: alternates (top-3 plausible species) as strict JSON
+            // 5) Alternates
             Content altsContent = new Content.Builder()
                     .addImage(imageBitmap)
                     .addText(
                             "Identify up to 3 alternate plausible plant species for this image. " +
                                     "Return STRICT JSON array only, no prose. " +
                                     "Each item must be: {\"common_name\":\"...\",\"scientific_name\":\"Genus species\",\"confidence\":INT0to100}. " +
-                                    "Confidence is your reliability score 0-100. If none, return []."
+                                    "Confidence is your reliability score 0-100. If none, return []. " +
+                                    "Do not include analysis, steps, thoughts, meta labels, or code fences."
                     )
                     .build();
-
-            ListenableFuture<GenerateContentResponse> altsFuture = model.generateContent(altsContent);
-            Futures.addCallback(altsFuture, new FutureCallback<GenerateContentResponse>() {
-                @Override public void onSuccess(GenerateContentResponse result) {
-                    String raw = (result != null && result.getText() != null) ? result.getText().trim() : "[]";
-                    parseAlternatesJson(raw);  // fills 'alternates'
-                    maybeDeliverAll();
-                }
-                @Override public void onFailure(Throwable t) {
-                    // leave alternates empty on failure
-                    maybeDeliverAll();
-                }
-            }, callbackExecutor);
+            generateTextWithRetry(model, altsContent, 1, cleaned -> {
+                String raw = (cleaned == null || cleaned.isEmpty()) ? "[]" : cleaned.trim();
+                parseAlternatesJson(raw);
+                maybeDeliverAll();
+            });
 
         }).addOnFailureListener(e -> {
             stopLoadingDots();
             Toast.makeText(this, "Failed to download image: " + e.getMessage(), Toast.LENGTH_LONG).show();
             enableButton(backBtn);
             enableButton(takeAnotherBtn);
-            // decrement the 5 slots so UI doesn't hang
             while (pending.getAndDecrement() > 0) {}
             maybeDeliverAll();
         });
@@ -295,9 +333,10 @@ public class DescriptionActivity extends AppCompatActivity {
     private String buildRolePromptNoFormatting(String roleRaw, String plantNameHint) {
         String role = (roleRaw == null) ? "" : roleRaw.trim().toLowerCase();
         String baseRule =
-                "Write in plain text only. Do not use any formatting such as bold, italics, underline, " +
-                        "markdown, asterisks, underscores, or backticks. Use greater than (>) to denote each point. " +
-                        "Put each point on its own line. Keep response under 100 words total. ";
+                "Write final answer only. Do NOT include analysis, steps, thoughts, or reasoning. " +
+                        "Never output lines starting with THOUGHT:, THOUGHTS:, ANALYSIS:, REASONING:, or similar. " +
+                        "Plain text only. Use greater than (>) to denote each point; one point per line. " +
+                        "Keep under 100 words total. ";
 
         switch (role) {
             case "hiker":
@@ -322,7 +361,26 @@ public class DescriptionActivity extends AppCompatActivity {
         if (pending.decrementAndGet() == 0) {
             runOnUiThread(() -> {
                 stopLoadingDots();
+
                 String formattedDescription = formatPoints(descriptionText);
+                formattedDescription = hardStripMetaLabels(formattedDescription);
+                formattedDescription = stripInstructionEcho(formattedDescription);   // NEW
+                if (formattedDescription.isEmpty()) {
+                    formattedDescription = "No description available for this image.";
+                }
+
+                if (confidenceScore < 80 && !alternates.isEmpty()) {
+                    String sentence = buildAlternatesSentence(alternates);
+                    if (!sentence.isEmpty()) {
+                        formattedDescription = formattedDescription + "\n\n" + sentence;
+                    }
+                }
+
+                // Last safety net on names
+                commonName = stripInstructionEcho(commonName);          // NEW
+                scientificName = stripInstructionEcho(scientificName);  // NEW
+                if (startsWithLeak(commonName)) commonName = "Unknown plant";
+                if (startsWithLeak(scientificName)) scientificName = "";
 
                 commonNameTv.setText(commonName);
                 scientificNameTv.setText(scientificName);
@@ -332,35 +390,26 @@ public class DescriptionActivity extends AppCompatActivity {
                 confidenceBar.setVisibility(View.VISIBLE);
                 confidenceBar.setProgress(confidenceScore);
                 confidenceTv.setText("Confidence: " + confidenceScore + "%");
-
-                // NEW: Inline alternates sentence if confidence < 80
-                if (confidenceScore < 80 && !alternates.isEmpty()) {
-                    String sentence = buildAlternatesSentence(alternates);
-                    if (!sentence.isEmpty()) {
-                        alternatesInlineTv.setText(sentence);
-                        alternatesInlineTv.setVisibility(View.VISIBLE);
-                    } else {
-                        alternatesInlineTv.setText("");
-                        alternatesInlineTv.setVisibility(View.GONE);
-                    }
-                } else {
-                    alternatesInlineTv.setText("");
-                    alternatesInlineTv.setVisibility(View.GONE);
-                }
+                applyConfidenceColor(confidenceScore);
 
                 enableButton(backBtn);
                 enableButton(takeAnotherBtn);
             });
 
-            // save once after all five are ready
             saveCaptureMetadataIfNeeded();
         }
     }
 
-    /** Writes the full history doc to Firestore: users/{uid}/captures/{autoId} */
-    private void saveCaptureMetadataIfNeeded() {
-        if (savedOnce.getAndSet(true)) return; // ensure single write
+    private void applyConfidenceColor(int score) {
+        int res = (score > 80)
+                ? R.drawable.progress_green
+                : (score >= 50 ? R.drawable.progress_yellow : R.drawable.progress_red);
+        confidenceBar.setProgressDrawable(ContextCompat.getDrawable(this, res));
+        confidenceBar.setProgress(confidenceBar.getProgress());
+    }
 
+    private void saveCaptureMetadataIfNeeded() {
+        if (savedOnce.getAndSet(true)) return;
         if (FirebaseAuth.getInstance().getCurrentUser() == null) return;
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
 
@@ -371,7 +420,7 @@ public class DescriptionActivity extends AppCompatActivity {
         data.put("commonName", commonName);
         data.put("scientificName", scientificName);
         data.put("description", descriptionText);
-        data.put("confidence", confidenceScore); // unchanged
+        data.put("confidence", confidenceScore);
 
         FirebaseFirestore.getInstance()
                 .collection("users")
@@ -387,22 +436,17 @@ public class DescriptionActivity extends AppCompatActivity {
         if (s == null) return 0;
         Matcher m = Pattern.compile("(\\d{1,3})").matcher(s);
         if (m.find()) {
-            try { return Integer.parseInt(m.group(1)); }
-            catch (Exception ignored) {}
+            try { return Integer.parseInt(m.group(1)); } catch (Exception ignored) {}
         }
         return 0;
     }
-
-    private int clamp0to100(int v) {
-        return Math.max(0, Math.min(100, v));
-    }
+    private int clamp0to100(int v) { return Math.max(0, Math.min(100, v)); }
 
     private void startLoadingDots(TextView target, String base) {
         if (target == null || loading) return;
         loading = true;
         final String[] dots = {".", "..", "..."};
         target.setText(base + dots[0]);
-
         loadingRunnable = new Runnable() {
             int i = 1;
             @Override public void run() {
@@ -414,46 +458,38 @@ public class DescriptionActivity extends AppCompatActivity {
         };
         handler.postDelayed(loadingRunnable, 500);
     }
-
     private void stopLoadingDots() {
         loading = false;
         if (loadingRunnable != null) handler.removeCallbacks(loadingRunnable);
     }
-
-    private void disableButton(View btn) {
-        if (btn == null) return;
-        btn.setEnabled(false);
-        btn.setAlpha(0.5f);
-    }
-
-    private void enableButton(View btn) {
-        if (btn == null) return;
-        btn.setEnabled(true);
-        btn.setAlpha(1f);
-    }
+    private void disableButton(View btn) { if (btn != null) { btn.setEnabled(false); btn.setAlpha(0.5f); } }
+    private void enableButton(View btn)  { if (btn != null) { btn.setEnabled(true);  btn.setAlpha(1f);   } }
 
     private String sanitizePlainTextKeepDashes(String s) {
         if (s == null) return "";
+        s = stripThoughtPreamble(s);
+        s = hardStripMetaLabels(s);
+        s = stripInstructionEcho(s);          // NEW
         s = s.replaceAll("[*_`~]", "");
         s = s.replaceAll("^\"+|\"+$", "");
         s = s.replaceAll("\\s+", " ").trim();
         return s;
     }
-
     private String formatPoints(String text) {
         if (text == null) return "";
         String formatted = text.replaceAll("\\s*>\\s*", "\n\n");
         return formatted.trim();
     }
-
     private String sanitizePlainText(String s) {
         if (s == null) return "";
+        s = stripThoughtPreamble(s);
+        s = hardStripMetaLabels(s);
+        s = stripInstructionEcho(s);          // NEW
         s = s.replaceAll("[*_`~]", "");
         s = s.replaceAll("^\"+|\"+$", "");
         s = s.replaceAll("\\s+", " ").trim();
         return s;
     }
-
     private String cleanScientificName(String raw) {
         if (raw == null) return "";
         String s = sanitizePlainText(raw);
@@ -463,16 +499,31 @@ public class DescriptionActivity extends AppCompatActivity {
         if (m.find()) return m.group(1);
         return s.split("\\R", 2)[0].trim();
     }
-
     private String cleanCommonName(String raw) {
         if (raw == null) return "";
         String s = sanitizePlainText(raw);
         s = s.replaceAll("\\.$", "");
-        String first = s.split("\\R", 2)[0].trim();
+        String first = "";
+        for (String line : s.split("\\R")) {
+            String ln = line.trim();
+            if (ln.isEmpty()) continue;
+            if (ln.matches("(?is)^(THOUGHTS?|THOUGHT|ANALYSIS|REASONING|THINKING|PLAN|REFLECTION)\\s*:.*")) continue;
+            first = ln; break;
+        }
+        if (first.isEmpty()) first = s.split("\\R",2)[0].trim();
+        if (startsWithLeak(first)) first = "Unknown plant";
         return first.length() > 40 ? first.substring(0, 40) + "…" : first;
     }
-
-    // NEW: parse alternates JSON -> sort by confidence desc -> keep top 3
+    private String parseCommonNameJson(String raw) {
+        try {
+            String json = raw.replaceAll("```(?:json)?", "").replace("```", "").trim();
+            JSONObject o = new JSONObject(json);
+            String cn = o.optString("common_name", "").trim();
+            return cleanCommonName(cn);
+        } catch (Exception e) {
+            return "";
+        }
+    }
     private void parseAlternatesJson(String raw) {
         alternates.clear();
         try {
@@ -488,13 +539,9 @@ public class DescriptionActivity extends AppCompatActivity {
                 }
             }
             Collections.sort(alternates, (a, b) -> Integer.compare(b.confidence, a.confidence));
-            if (alternates.size() > 3) {
-                alternates.subList(3, alternates.size()).clear();
-            }
+            if (alternates.size() > 3) alternates.subList(3, alternates.size()).clear();
         } catch (Exception ignored) {}
     }
-
-    // NEW: build the inline sentence: "It could also be: X, Y or Z."
     private String buildAlternatesSentence(List<Candidate> items) {
         List<String> names = new ArrayList<>();
         for (Candidate c : items) {
@@ -509,13 +556,6 @@ public class DescriptionActivity extends AppCompatActivity {
         return "It could also be: " + names.get(0) + ", " + names.get(1) + " or " + names.get(2) + ".";
     }
 
-    @Override protected void onPause() {
-        super.onPause();
-        stopLoadingDots();
-    }
-
-    @Override protected void onDestroy() {
-        stopLoadingDots();
-        super.onDestroy();
-    }
+    @Override protected void onPause() { super.onPause(); stopLoadingDots(); }
+    @Override protected void onDestroy() { stopLoadingDots(); super.onDestroy(); }
 }
