@@ -1,3 +1,5 @@
+import org.gradle.kotlin.dsl.implementation
+
 plugins {
     alias(libs.plugins.android.application)
     id("com.google.gms.google-services")
@@ -59,4 +61,8 @@ dependencies {
     // Optional: Futures / Reactive if you use them
     implementation("com.google.guava:guava:31.0.1-android")
     implementation("org.reactivestreams:reactive-streams:1.0.4")
+
+    implementation ("com.github.bumptech.glide:glide:4.16.0")
+    annotationProcessor ("com.github.bumptech.glide:compiler:4.16.0")
+
 }

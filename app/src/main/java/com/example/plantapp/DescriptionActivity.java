@@ -20,12 +20,12 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.bumptech.glide.Glide;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 
-// Firebase AI (Gemini)
 import com.google.firebase.ai.FirebaseAI;
 import com.google.firebase.ai.GenerativeModel;
 import com.google.firebase.ai.java.GenerativeModelFutures;
@@ -33,7 +33,6 @@ import com.google.firebase.ai.type.Content;
 import com.google.firebase.ai.type.GenerateContentResponse;
 import com.google.firebase.ai.type.GenerativeBackend;
 
-// Firebase Auth/Firestore/Storage
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
@@ -68,16 +67,17 @@ public class DescriptionActivity extends AppCompatActivity {
     private Runnable loadingRunnable = null;
     private boolean loading = false;
 
-    // wait for: description + scientific + common + confidence
     private final AtomicInteger pending = new AtomicInteger(4);
     private final AtomicBoolean savedOnce = new AtomicBoolean(false);
 
     private String userRole;
-    private String imageUrl;     // Firebase Storage download URL
-    private Bitmap imageBitmap;  // decoded for UI + Gemini
+    private String imageUrl;
+    private Bitmap imageBitmap;
 
-    // NEW: track whether this was recognized as a plant
     private boolean isPlant = true;
+
+    // NEW: tells us this came from My Garden
+    private boolean fromGarden = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,9 +85,11 @@ public class DescriptionActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_description);
 
-        // ---- intent extras ----
-        userRole = getIntent().getStringExtra("userRole");
-        imageUrl = getIntent().getStringExtra("imageUrl");
+        // Extras
+        userRole    = getIntent().getStringExtra("userRole");
+        imageUrl    = getIntent().getStringExtra("imageUrl");
+        fromGarden  = getIntent().getBooleanExtra("fromGarden", false);
+
         if (userRole == null) userRole = "Hiker";
         if (imageUrl == null || imageUrl.trim().isEmpty()) {
             Toast.makeText(this, "Missing image URL", Toast.LENGTH_LONG).show();
@@ -95,7 +97,7 @@ public class DescriptionActivity extends AppCompatActivity {
             return;
         }
 
-        // avoid system bars overlap
+        // handle insets
         View root = findViewById(R.id.main);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -103,7 +105,7 @@ public class DescriptionActivity extends AppCompatActivity {
             return insets;
         });
 
-        // ---- UI refs ----
+        // UI refs
         descriptionTv     = findViewById(R.id.PlantDescriptionText);
         scientificNameTv  = findViewById(R.id.PlantScientificNameText);
         commonNameTv      = findViewById(R.id.PlantNameText);
@@ -125,53 +127,93 @@ public class DescriptionActivity extends AppCompatActivity {
             startActivity(i);
             finish();
         });
+
         backBtn.setOnClickListener(v -> {
             startActivity(new Intent(this, MainActivity.class));
             finish();
         });
 
+        // --------------------------------------------
+        // CASE 1: COMING FROM MY GARDEN – skip Gemini
+        // --------------------------------------------
+        if (fromGarden) {
+            loadGardenPlantAndDisplay();
+            return;
+        }
+
+        // --------------------------------------------
+        // CASE 2: NORMAL – NEW CAPTURE (run Gemini)
+        // --------------------------------------------
         confidenceTv.setVisibility(View.GONE);
         confidenceBar.setVisibility(View.GONE);
         confidenceBar.setProgress(0);
 
         startLoadingDots(commonNameTv, "Loading");
 
-        // ---- download bytes -> set ImageView -> run Gemini ----
         downloadImageAndRunGemini(imageUrl, userRole);
     }
 
-    /** Downloads the image from Firebase Storage, decodes to Bitmap, shows it, then runs Gemini. */
+    // ---------------------------------------------------------
+    // Garden Case: display existing saved plant info instantly
+    // ---------------------------------------------------------
+    private void loadGardenPlantAndDisplay() {
+
+        // load image via Glide
+        Glide.with(this).load(imageUrl).into(plantImageView);
+
+        // load data passed from adapter
+        commonName     = getIntent().getStringExtra("commonName");
+        scientificName = getIntent().getStringExtra("scientificName");
+        descriptionText = getIntent().getStringExtra("descriptionText");
+        confidenceScore = getIntent().getIntExtra("confidence", 0);
+
+        // Show UI
+        commonNameTv.setText(commonName);
+        scientificNameTv.setText(scientificName);
+        descriptionTv.setText(descriptionText);
+
+        confidenceBar.setVisibility(View.VISIBLE);
+        confidenceTv.setVisibility(View.VISIBLE);
+        confidenceBar.setProgress(confidenceScore);
+        confidenceTv.setText("Confidence: " + confidenceScore + "%");
+
+        enableButton(backBtn);
+        enableButton(takeAnotherBtn);
+    }
+
+    // ---------------------------------------------------------
+    // Capture Case: Download → Gemini → Save To Firestore
+    // ---------------------------------------------------------
     private void downloadImageAndRunGemini(String url, String role) {
         StorageReference ref = FirebaseStorage.getInstance().getReferenceFromUrl(url);
-        final long MAX = 8L * 1024L * 1024L; // 8MB
+        final long MAX = 8L * 1024L * 1024L;
 
         ref.getBytes(MAX).addOnSuccessListener(bytes -> {
             imageBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+
             if (imageBitmap == null) {
                 stopLoadingDots();
                 Toast.makeText(this, "Failed to decode image", Toast.LENGTH_LONG).show();
                 enableButton(backBtn);
                 enableButton(takeAnotherBtn);
-                // decrement the 4 slots so UI doesn't hang
                 while (pending.getAndDecrement() > 0) {}
                 maybeDeliverAll();
                 return;
             }
 
-            // show the image the user just took
             plantImageView.setImageBitmap(imageBitmap);
 
-            // Build Gemini model
             Executor callbackExecutor = MoreExecutors.directExecutor();
+
             GenerativeModel ai = FirebaseAI.getInstance(GenerativeBackend.googleAI())
                     .generativeModel("gemini-2.5-flash");
+
             GenerativeModelFutures model = GenerativeModelFutures.from(ai);
 
-            // ---- FIRST: check if the image is actually a plant ----
+            // Plant check
             Content checkContent = new Content.Builder()
                     .addImage(imageBitmap)
-                    .addText("Is the main subject of this image a plant (tree, flower, leaf, cactus, moss, etc.)? " +
-                            "Answer with exactly YES or NO.")
+                    .addText("Is the main subject of this image a plant? Answer YES or NO.")
                     .build();
 
             ListenableFuture<GenerateContentResponse> checkFuture =
@@ -180,21 +222,19 @@ public class DescriptionActivity extends AppCompatActivity {
             Futures.addCallback(checkFuture, new FutureCallback<GenerateContentResponse>() {
                 @Override
                 public void onSuccess(GenerateContentResponse result) {
-                    String raw = (result != null && result.getText() != null)
-                            ? result.getText().trim()
-                            : "";
-                    String answer = raw.toUpperCase(Locale.getDefault());
 
-                    if (answer.startsWith("N")) {
-                        // NOT A PLANT
+                    String raw = (result != null && result.getText() != null)
+                            ? result.getText().trim() : "";
+
+                    if (raw.toUpperCase(Locale.getDefault()).startsWith("N")) {
+
                         isPlant = false;
 
                         commonName = "Not a plant";
                         scientificName = "";
-                        descriptionText = "This image has not been recognized as a plant. Please retake the picture and try again.";
+                        descriptionText = "This image has not been recognized as a plant.";
                         confidenceScore = 0;
 
-                        // Delete the image from Storage so nothing is saved
                         deleteImageFromStorage(imageUrl);
 
                         runOnUiThread(() -> {
@@ -202,17 +242,13 @@ public class DescriptionActivity extends AppCompatActivity {
                             commonNameTv.setText(commonName);
                             scientificNameTv.setText(scientificName);
                             descriptionTv.setText(descriptionText);
-                            confidenceTv.setVisibility(View.VISIBLE);
                             confidenceBar.setVisibility(View.VISIBLE);
-                            confidenceBar.setProgress(confidenceScore);
-                            confidenceTv.setText("Confidence: " + confidenceScore + "%");
+                            confidenceTv.setVisibility(View.VISIBLE);
                             enableButton(backBtn);
                             enableButton(takeAnotherBtn);
                         });
 
-                        // IMPORTANT: do NOT save non-plant captures to Firestore
                     } else {
-                        // Looks like a plant -> run your normal 4-call pipeline
                         isPlant = true;
                         runPlantDetailCalls(model, role, callbackExecutor);
                     }
@@ -220,7 +256,6 @@ public class DescriptionActivity extends AppCompatActivity {
 
                 @Override
                 public void onFailure(Throwable t) {
-                    // If the plant check fails, just fall back to the normal flow
                     isPlant = true;
                     runPlantDetailCalls(model, role, callbackExecutor);
                 }
@@ -231,23 +266,21 @@ public class DescriptionActivity extends AppCompatActivity {
             Toast.makeText(this, "Failed to download image: " + e.getMessage(), Toast.LENGTH_LONG).show();
             enableButton(backBtn);
             enableButton(takeAnotherBtn);
-            // decrement the 4 slots so UI doesn't hang
             while (pending.getAndDecrement() > 0) {}
             maybeDeliverAll();
         });
     }
 
-    /** Run the 4 existing Gemini calls assuming the image is a plant. */
     private void runPlantDetailCalls(GenerativeModelFutures model, String role, Executor callbackExecutor) {
-        // Reset pending count for this flow
         pending.set(4);
 
-        // 1) role-specific description (image + text)
+        // (1) description
         String descPromptText = buildRolePromptNoFormatting(role, "this plant");
         Content descContent = new Content.Builder()
                 .addImage(imageBitmap)
                 .addText(descPromptText)
                 .build();
+
         ListenableFuture<GenerateContentResponse> descFuture = model.generateContent(descContent);
         Futures.addCallback(descFuture, new FutureCallback<GenerateContentResponse>() {
             @Override public void onSuccess(GenerateContentResponse result) {
@@ -261,12 +294,12 @@ public class DescriptionActivity extends AppCompatActivity {
             }
         }, callbackExecutor);
 
-        // 2) scientific name from the image
+        // (2) scientific name
         Content sciContent = new Content.Builder()
                 .addImage(imageBitmap)
-                .addText("From this image, what is the scientific name (Genus species) of this plant? " +
-                        "Respond with only the scientific name as plain text, no punctuation or formatting.")
+                .addText("What is the scientific name?")
                 .build();
+
         ListenableFuture<GenerateContentResponse> sciFuture = model.generateContent(sciContent);
         Futures.addCallback(sciFuture, new FutureCallback<GenerateContentResponse>() {
             @Override public void onSuccess(GenerateContentResponse result) {
@@ -280,12 +313,12 @@ public class DescriptionActivity extends AppCompatActivity {
             }
         }, callbackExecutor);
 
-        // 3) common name from the image
+        // (3) common name
         Content commonContent = new Content.Builder()
                 .addImage(imageBitmap)
-                .addText("From this image, what is the common name of this plant? " +
-                        "Respond with only the common name, capitalized first letter, as plain text, no punctuation or formatting.")
+                .addText("What is the common name?")
                 .build();
+
         ListenableFuture<GenerateContentResponse> commonFuture = model.generateContent(commonContent);
         Futures.addCallback(commonFuture, new FutureCallback<GenerateContentResponse>() {
             @Override public void onSuccess(GenerateContentResponse result) {
@@ -299,12 +332,12 @@ public class DescriptionActivity extends AppCompatActivity {
             }
         }, callbackExecutor);
 
-        // 4) confidence score 0–100 (image only)
+        // (4) confidence
         Content confContent = new Content.Builder()
                 .addImage(imageBitmap)
-                .addText("On a scale from 0 to 100, how confident are you in your plant identification "
-                        + "from this image? Respond with only the integer number (0-100), no words, no percent sign.")
+                .addText("Confidence from 0 to 100?")
                 .build();
+
         ListenableFuture<GenerateContentResponse> confFuture = model.generateContent(confContent);
         Futures.addCallback(confFuture, new FutureCallback<GenerateContentResponse>() {
             @Override public void onSuccess(GenerateContentResponse result) {
@@ -313,41 +346,15 @@ public class DescriptionActivity extends AppCompatActivity {
                 maybeDeliverAll();
             }
             @Override public void onFailure(Throwable t) {
-                confidenceScore = 0; // fallback
+                confidenceScore = 0;
                 maybeDeliverAll();
             }
         }, callbackExecutor);
     }
 
-    // ---------- role prompt ----------
-    private String buildRolePromptNoFormatting(String roleRaw, String plantNameHint) {
-        String role = (roleRaw == null) ? "" : roleRaw.trim().toLowerCase();
-        String baseRule =
-                "Write in plain text only. Do not use any formatting such as bold, italics, underline, " +
-                        "markdown, asterisks, underscores, or backticks. Use greater than (>) to denote each point. " +
-                        "Put each point on its own line. Keep response under 100 words total. ";
-
-        switch (role) {
-            case "hiker":
-                return baseRule + "From the provided image of a plant, write a concise field-guide entry " +
-                        "for a hiker (one line per point). Focus on habitat, identifying features, seasonality, " +
-                        "elevation, and safety notes about toxic or similar-looking plants.";
-            case "chef":
-                return baseRule + "From the provided image of a plant, write a culinary summary for a chef " +
-                        "(one line per point). Focus on edible parts, flavor, aroma, seasonal availability, " +
-                        "texture, preparation methods, and ideal pairings.";
-            case "gardener":
-                return baseRule + "From the provided image of a plant, write a horticultural overview for a gardener " +
-                        "(one line per point). Cover light requirements, soil, watering, propagation, and common pests/diseases.";
-            default:
-                return baseRule + "From the provided image, write an encyclopedia-style summary of the plant " +
-                        "(one line per point), describing appearance, natural habitat, and uses.";
-        }
-    }
-
-    // ---------- deliver & UI ----------
     private void maybeDeliverAll() {
         if (pending.decrementAndGet() == 0) {
+
             runOnUiThread(() -> {
                 stopLoadingDots();
                 String formattedDescription = formatPoints(descriptionText);
@@ -365,17 +372,14 @@ public class DescriptionActivity extends AppCompatActivity {
                 enableButton(takeAnotherBtn);
             });
 
-            // save once after all four are ready (ONLY if it is a plant)
             saveCaptureMetadataIfNeeded();
         }
     }
 
-    /** Writes the full history doc to Firestore: users/{uid}/captures/{autoId} */
     private void saveCaptureMetadataIfNeeded() {
-        // Do not save non-plant captures
+        if (fromGarden) return;   // skip saving duplicates
         if (!isPlant) return;
-
-        if (savedOnce.getAndSet(true)) return; // ensure single write
+        if (savedOnce.getAndSet(true)) return;
 
         if (FirebaseAuth.getInstance().getCurrentUser() == null) return;
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
@@ -389,8 +393,8 @@ public class DescriptionActivity extends AppCompatActivity {
         Map<String, Object> data = new HashMap<>();
         data.put("url", imageUrl);
         data.put("role", userRole);
-        data.put("timestamp", nowMillis);          // numeric
-        data.put("dateTime", formattedDateTime);   // human-readable string
+        data.put("timestamp", nowMillis);
+        data.put("dateTime", formattedDateTime);
         data.put("commonName", commonName);
         data.put("scientificName", scientificName);
         data.put("description", descriptionText);
@@ -400,14 +404,9 @@ public class DescriptionActivity extends AppCompatActivity {
                 .collection("users")
                 .document(uid)
                 .collection("captures")
-                .add(data)
-                .addOnFailureListener(e ->
-                        Toast.makeText(this,
-                                "Failed to save history: " + e.getMessage(),
-                                Toast.LENGTH_SHORT).show());
+                .add(data);
     }
 
-    // Delete image from Storage best-effort (for non-plant images)
     private void deleteImageFromStorage(String url) {
         if (url == null || url.isEmpty()) return;
         try {
@@ -416,14 +415,32 @@ public class DescriptionActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
     }
 
-    // ---------- helpers ----------
+    // -----------------------------------------------------
+    // Helper Methods
+    // -----------------------------------------------------
+
+    private String buildRolePromptNoFormatting(String roleRaw, String plantNameHint) {
+        String role = (roleRaw == null) ? "" : roleRaw.trim().toLowerCase();
+        String baseRule =
+                "Write in plain text only. Do not use any formatting. "
+                        + "Use '>' at the start of each point. Keep it under 100 words. ";
+
+        switch (role) {
+            case "hiker":
+                return baseRule + "Give a field-guide style summary for hikers.";
+            case "chef":
+                return baseRule + "Give a culinary summary including edible parts, flavor, uses.";
+            case "gardener":
+                return baseRule + "Give gardening instructions: soil, watering, light, pests.";
+            default:
+                return baseRule + "Give a simple factual plant summary.";
+        }
+    }
+
     private int extractFirstInt(String s) {
         if (s == null) return 0;
         Matcher m = Pattern.compile("(\\d{1,3})").matcher(s);
-        if (m.find()) {
-            try { return Integer.parseInt(m.group(1)); }
-            catch (Exception ignored) {}
-        }
+        if (m.find()) return Integer.parseInt(m.group(1));
         return 0;
     }
 
@@ -451,67 +468,60 @@ public class DescriptionActivity extends AppCompatActivity {
 
     private void stopLoadingDots() {
         loading = false;
-        if (loadingRunnable != null) handler.removeCallbacks(loadingRunnable);
+        if (loadingRunnable != null)
+            handler.removeCallbacks(loadingRunnable);
     }
 
     private void disableButton(View btn) {
-        if (btn == null) return;
         btn.setEnabled(false);
         btn.setAlpha(0.5f);
     }
 
     private void enableButton(View btn) {
-        if (btn == null) return;
         btn.setEnabled(true);
         btn.setAlpha(1f);
     }
 
     private String sanitizePlainTextKeepDashes(String s) {
         if (s == null) return "";
-        s = s.replaceAll("[*_`~]", "");
-        s = s.replaceAll("^\"+|\"+$", "");
-        s = s.replaceAll("\\s+", " ").trim();
-        return s;
+        return s.replaceAll("[*_`~]", "")
+                .replaceAll("^\"+|\"+$", "")
+                .replaceAll("\\s+", " ").trim();
     }
 
     private String formatPoints(String text) {
-        if (text == null) return "";
-        String formatted = text.replaceAll("\\s*>\\s*", "\n\n");
-        return formatted.trim();
+        return text == null ? "" : text.replace(">", "\n\n>").trim();
     }
 
     private String sanitizePlainText(String s) {
         if (s == null) return "";
-        s = s.replaceAll("[*_`~]", "");
-        s = s.replaceAll("^\"+|\"+$", "");
-        s = s.replaceAll("\\s+", " ").trim();
-        return s;
+        return s.replaceAll("[*_`~]", "")
+                .replaceAll("^\"+|\"+$", "")
+                .replaceAll("\\s+", " ").trim();
     }
 
     private String cleanScientificName(String raw) {
         if (raw == null) return "";
         String s = sanitizePlainText(raw);
-        s = s.replaceAll("\\.$", "");
-        Pattern p = Pattern.compile("([A-Z][a-z]+\\s+[a-z]+(?:\\s+[a-z]+)?)");
-        Matcher m = p.matcher(s);
+        Matcher m = Pattern.compile("([A-Z][a-z]+\\s+[a-z]+)").matcher(s);
         if (m.find()) return m.group(1);
-        return s.split("\\R", 2)[0].trim();
+        return s.split("\\s")[0];
     }
 
     private String cleanCommonName(String raw) {
         if (raw == null) return "";
-        String s = sanitizePlainText(raw);
-        s = s.replaceAll("\\.$", "");
-        String first = s.split("\\R", 2)[0].trim();
+        String first = sanitizePlainText(raw);
         return first.length() > 40 ? first.substring(0, 40) + "…" : first;
     }
 
-    @Override protected void onPause() {
+    @Override
+    protected void onPause() {
         super.onPause();
         stopLoadingDots();
     }
 
-    @Override protected void onDestroy() {
+    @Override
+    protected void onDestroy() {
         stopLoadingDots();
         super.onDestroy();
     }
