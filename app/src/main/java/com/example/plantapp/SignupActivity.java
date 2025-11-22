@@ -83,6 +83,15 @@ public class SignupActivity extends AppCompatActivity {
             etUsername.requestFocus();
             return;
         }
+
+        // 👇 NEW: username must be ONLY letters A–Z / a–z (no punctuation, digits, emojis)
+        if (!username.matches("[A-Za-z0-9]+")) {
+
+            etUsername.setError("Username can only contain letters A–Z (no spaces or symbols)");
+            etUsername.requestFocus();
+            return;
+        }
+
         if (TextUtils.isEmpty(email)) {
             etEmail.setError("Email required");
             etEmail.requestFocus();
@@ -103,8 +112,23 @@ public class SignupActivity extends AppCompatActivity {
             etPassword.requestFocus();
             return;
         }
+
+        // 👇 NEW: passwords cannot contain emojis (but can have special characters)
+        if (containsEmoji(pass)) {
+            etPassword.setError("Password cannot contain emoji characters");
+            etPassword.requestFocus();
+            return;
+        }
+
         if (!pass.equals(confirm)) {
             etConfirmPassword.setError("Passwords do not match");
+            etConfirmPassword.requestFocus();
+            return;
+        }
+
+        // 👇 Optional but consistent: also block emojis in confirm just in case
+        if (containsEmoji(confirm)) {
+            etConfirmPassword.setError("Password cannot contain emoji characters");
             etConfirmPassword.requestFocus();
             return;
         }
@@ -180,5 +204,49 @@ public class SignupActivity extends AppCompatActivity {
     @Override
     public void onStart() {
         super.onStart();
+    }
+
+    // ---------- Emoji detection helpers ----------
+
+    /**
+     * Returns true if the string contains any emoji-like codepoint.
+     * This still allows normal special characters like !@#$%^&* etc.
+     */
+    private boolean containsEmoji(String input) {
+        if (input == null) return false;
+
+        int length = input.length();
+        for (int i = 0; i < length; ) {
+            int codePoint = input.codePointAt(i);
+            if (isEmojiCodePoint(codePoint)) {
+                return true;
+            }
+            i += Character.charCount(codePoint);
+        }
+        return false;
+    }
+
+    /**
+     * Rough check for common emoji Unicode ranges.
+     * Not 100% spec-complete, but good enough to block emoji usage in passwords.
+     */
+    private boolean isEmojiCodePoint(int codePoint) {
+        return
+                // Emoticons
+                (codePoint >= 0x1F600 && codePoint <= 0x1F64F) ||
+                        // Misc symbols and pictographs
+                        (codePoint >= 0x1F300 && codePoint <= 0x1F5FF) ||
+                        // Transport and map
+                        (codePoint >= 0x1F680 && codePoint <= 0x1F6FF) ||
+                        // Supplemental symbols and pictographs
+                        (codePoint >= 0x1F900 && codePoint <= 0x1F9FF) ||
+                        // Misc symbols
+                        (codePoint >= 0x2600 && codePoint <= 0x26FF) ||
+                        // Dingbats
+                        (codePoint >= 0x2700 && codePoint <= 0x27BF) ||
+                        // Variation selectors (often used with emoji)
+                        (codePoint >= 0xFE00 && codePoint <= 0xFE0F) ||
+                        // Additional extended pictographic area
+                        (codePoint >= 0x1FA70 && codePoint <= 0x1FAFF);
     }
 }

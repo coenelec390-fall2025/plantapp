@@ -23,6 +23,9 @@
         android:theme="@style/Theme.Plantapp"
         android:usesCleartextTraffic="true">
         <activity
+            android:name=".FriendProfileActivity"
+            android:exported="false" />
+        <activity
             android:name=".HistoryDescriptionActivity"
             android:exported="false" />
         <activity

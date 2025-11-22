@@ -12,28 +12,70 @@
     android:background="@drawable/profile_bg_gradient"
     tools:context=".SettingsActivity">
 
-    <!-- Top bar -->
-    <ImageButton
-        android:id="@+id/BackButton"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:background="@android:color/transparent"
-        android:contentDescription="Back"
-        android:src="@android:drawable/ic_media_previous"
-        android:layout_gravity="start"
-        android:layout_marginBottom="8dp"
-        app:tint="#E8F5E9" />
-
-    <!-- Title -->
-    <TextView
-        android:id="@+id/textViewTitle"
-        android:layout_width="wrap_content"
+    <!-- Top bar row: Back + Title + Friends button with badge -->
+    <LinearLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:text="Profile"
-        android:textColor="#E8F5E9"
-        android:textSize="28sp"
-        android:textStyle="bold" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <ImageButton
+            android:id="@+id/BackButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="Back"
+            android:src="@android:drawable/ic_media_previous"
+            app:tint="#E8F5E9" />
+
+        <TextView
+            android:id="@+id/textViewTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="Profile"
+            android:textColor="#E8F5E9"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <!-- Friends button wrapped so we can overlay a badge -->
+        <FrameLayout
+            android:layout_width="40dp"
+            android:layout_height="40dp">
+
+            <ImageButton
+                android:id="@+id/AddFriendButton"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/transparent"
+                android:contentDescription="Friends"
+                android:src="@android:drawable/ic_input_add"
+                app:tint="#E8F5E9" />
+
+            <TextView
+                android:id="@+id/friendRequestBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="2dp"
+                android:layout_marginEnd="2dp"
+                android:background="@drawable/badge_background"
+                android:paddingLeft="4dp"
+                android:paddingRight="4dp"
+                android:paddingTop="1dp"
+                android:paddingBottom="1dp"
+                android:minWidth="16dp"
+                android:minHeight="16dp"
+                android:gravity="center"
+                android:text="0"
+                android:textSize="10sp"
+                android:textColor="@android:color/white"
+                android:visibility="gone" />
+        </FrameLayout>
+    </LinearLayout>
 
     <!-- Card container for the content -->
     <LinearLayout
@@ -88,6 +130,7 @@
             android:progressDrawable="@drawable/green_progress_bg"
             android:layout_marginBottom="16dp" />
 
+        <!-- Plant History section -->
         <TextView
             android:id="@+id/PlantHistoryTitle"
             android:layout_width="wrap_content"
@@ -109,9 +152,31 @@
             android:dividerHeight="1dp"
             android:scrollbars="vertical" />
 
+        <!-- Friends section under plant history -->
+        <TextView
+            android:id="@+id/FriendsTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Friends"
+            android:textColor="#E8F5E9"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="6dp" />
+
+        <ListView
+            android:id="@+id/friendsListView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            android:padding="0dp"
+            android:divider="#264935"
+            android:dividerHeight="1dp"
+            android:scrollbars="vertical" />
+
     </LinearLayout>
 
-    <!-- Bottom buttons (outside the card so they float on background like main FAB) -->
+    <!-- Bottom buttons -->
     <Button
         android:id="@+id/ClearHistoryButton"
         android:layout_width="match_parent"

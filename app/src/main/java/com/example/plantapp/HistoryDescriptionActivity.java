@@ -58,6 +58,10 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         confidence = i.getIntExtra("confidence", 0);
         dateTime = i.getStringExtra("dateTime");
 
+        // Whether the user is allowed to delete this history entry
+        boolean allowDelete = i.getBooleanExtra("allowDelete", true);
+
+
         if (imageUrl == null || imageUrl.trim().isEmpty()) {
             Toast.makeText(this, "Missing image URL", Toast.LENGTH_LONG).show();
             finish();
@@ -90,13 +94,20 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
             plantTitle.setText("Plant Description\n" + userRole);
         }
 
-        // ---- Back button ----
+// ---- Back button ----
         backBtn.setOnClickListener(v -> finish());
 
-        // ---- Configure delete button ----
-        deleteBtn.setVisibility(View.VISIBLE);
-        deleteBtn.setText("Delete from History");
-        deleteBtn.setOnClickListener(v -> deleteCurrentHistoryEntry());
+// ---- Configure delete button (respect allowDelete) ----
+        if (!allowDelete) {
+            // Friend's capture → hide delete
+            deleteBtn.setVisibility(View.GONE);
+        } else {
+            // Your own capture → allow delete
+            deleteBtn.setVisibility(View.VISIBLE);
+            deleteBtn.setText("Delete from History");
+            deleteBtn.setOnClickListener(v -> deleteCurrentHistoryEntry());
+        }
+
 
         // ---- Set UI text ----
         commonNameTv.setText(commonName != null ? commonName : "Unknown Plant");
