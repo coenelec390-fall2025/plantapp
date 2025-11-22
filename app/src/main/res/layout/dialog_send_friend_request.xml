@@ -1,92 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="@android:color/transparent"
-    android:padding="0dp">
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
 
-    <!-- MATCHING CARD SIZE WITH FRIENDS DIALOG -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_margin="32dp"
         android:orientation="vertical"
-        android:background="@drawable/profile_card_bg"
         android:padding="20dp"
-        android:elevation="12dp">
+        android:background="@drawable/profile_card_bg">
 
-        <!-- Title -->
         <TextView
-            android:id="@+id/sendRequestTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Send Friend Request"
-            android:textSize="20sp"
-            android:textStyle="bold"
             android:textColor="#E8F5E9"
-            android:gravity="center_horizontal"
-            android:layout_marginBottom="10dp" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#264935"
+            android:textStyle="bold"
+            android:textSize="20sp"
+            android:gravity="center"
             android:layout_marginBottom="12dp" />
 
-        <!-- Subtitle -->
         <TextView
-            android:id="@+id/sendRequestSubtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Enter your friend's username:"
-            android:textSize="15sp"
-            android:textColor="#A5D6A7"
-            android:layout_marginBottom="12dp" />
+            android:text="Enter username:"
+            android:textColor="#E8F5E9"
+            android:textSize="14sp"
+            android:layout_marginBottom="4dp" />
 
-        <!-- Input -->
         <EditText
-            android:id="@+id/friendUsernameInput"
+            android:id="@+id/editTextFriendUsername"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Username"
+            android:hint="username"
+            android:inputType="textNoSuggestions"
             android:textColor="#FFFFFF"
-            android:textColorHint="#80FFFFFF"
+            android:textColorHint="#90FFFFFF"
             android:background="@android:color/transparent"
             android:padding="8dp"
-            android:layout_marginBottom="20dp" />
+            android:layout_marginBottom="4dp" />
 
-        <!-- Button row -->
+        <TextView
+            android:id="@+id/errorText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#FFCDD2"
+            android:textSize="12sp"
+            android:visibility="gone"
+            android:layout_marginBottom="8dp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="end">
+            android:layout_marginTop="8dp">
 
             <Button
-                android:id="@+id/cancelButton"
-                android:layout_width="wrap_content"
+                android:id="@+id/buttonSendRequest"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Cancel"
-                android:textStyle="bold"
-                android:backgroundTint="@android:color/transparent"
-                android:textColor="#FFCDD2"
-                android:foreground="?attr/selectableItemBackground"
-                android:minWidth="0dp"
-                android:paddingLeft="12dp"
-                android:paddingRight="12dp" />
-
-            <Button
-                android:id="@+id/confirmSendButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="Send"
-                android:textStyle="bold"
                 android:backgroundTint="#47D04C"
                 android:textColor="#001018"
-                android:minWidth="0dp"
-                android:paddingLeft="16dp"
-                android:paddingRight="16dp"
-                android:layout_marginStart="8dp" />
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/buttonCancelSend"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Cancel"
+                android:backgroundTint="@android:color/transparent"
+                android:textColor="#6EF7A7"
+                android:textStyle="bold" />
         </LinearLayout>
 
     </LinearLayout>
-</ScrollView>
+
+</FrameLayout>

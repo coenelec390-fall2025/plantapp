@@ -14,21 +14,29 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 public class SettingsActivity extends AppCompatActivity {
 
@@ -40,12 +48,30 @@ public class SettingsActivity extends AppCompatActivity {
     private ListView friendsListView;
     private TextView friendRequestBadge;
 
+    // history
     private final List<PlantCapture> historyItems = new ArrayList<>();
     private HistoryAdapter historyAdapter;
 
-    // Friends list data + adapter
+    // friends list (bottom of screen)
     private final List<FriendItem> friendItems = new ArrayList<>();
     private FriendAdapter friendAdapter;
+
+    // friend request dialog data
+    private final List<FriendRequestItem> incomingRequests = new ArrayList<>();
+    private final List<FriendRequestItem> outgoingRequests = new ArrayList<>();
+    private IncomingAdapter incomingAdapter;
+    private OutgoingAdapter outgoingAdapter;
+
+    private FirebaseAuth auth;
+    private FirebaseFirestore db;
+
+    private String currentUid;
+    private String currentUsername;   // for “you can’t add yourself” check
+
+    // Firestore subcollection names
+    private static final String SUB_FRIENDS = "friends";
+    private static final String SUB_REQ_IN = "friendRequestsIncoming";
+    private static final String SUB_REQ_OUT = "friendRequestsOutgoing";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,7 +79,18 @@ public class SettingsActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_settings);
 
-        // padding to not overlap with phone camera
+        auth = FirebaseAuth.getInstance();
+        db   = FirebaseFirestore.getInstance();
+
+        FirebaseUser user = auth.getCurrentUser();
+        if (user == null) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
+        currentUid = user.getUid();
+
+        // padding to not overlap with camera hole
         View root = findViewById(R.id.main);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -61,14 +98,17 @@ public class SettingsActivity extends AppCompatActivity {
             return insets;
         });
 
-        // back button
+        // top bar
         ImageButton backButton = findViewById(R.id.BackButton);
         backButton.setOnClickListener(v -> {
             startActivity(new Intent(this, MainActivity.class));
             finish();
         });
 
-        // find views
+        ImageButton addFriendButton = findViewById(R.id.AddFriendButton);
+        addFriendButton.setOnClickListener(v -> openFriendsDialog());
+
+        // main views
         usernameDisplay    = findViewById(R.id.UsernameDisplay);
         plantCounterText   = findViewById(R.id.PlantCounterText);
         plantRankingText   = findViewById(R.id.PlantRankingText);
@@ -90,17 +130,14 @@ public class SettingsActivity extends AppCompatActivity {
         Button clearHistoryBtn = findViewById(R.id.ClearHistoryButton);
         clearHistoryBtn.setOnClickListener(v -> clearHistory());
 
-        // Friends button, dialog, etc. (keep your existing code elsewhere)
-
-        // Set up history list + adapter
+        // adapters
         historyAdapter = new HistoryAdapter(historyItems);
         historyListView.setAdapter(historyAdapter);
 
-        // Set up friends list + adapter
         friendAdapter = new FriendAdapter(friendItems);
         friendsListView.setAdapter(friendAdapter);
 
-        // load username once
+        // load header info
         loadUsername();
     }
 
@@ -108,26 +145,19 @@ public class SettingsActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         loadHistory();
-        loadFriends();   // refresh friends as well
-        // also refresh incoming request badge wherever you do that
+        loadFriends();
+        loadFriendRequestCounts();   // updates badge
     }
 
-    // -------------------- USERNAME --------------------
+    // ------------------------------------------------------------------
+    // USERNAME
+    // ------------------------------------------------------------------
     private void loadUsername() {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) {
-            usernameDisplay.setText("Unknown User");
-            return;
-        }
-
-        String uid = user.getUid();
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-
-        db.collection("users").document(uid).get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        String username = documentSnapshot.getString("username");
-                        usernameDisplay.setText(username != null ? username : "Unnamed User");
+        db.collection("users").document(currentUid).get()
+                .addOnSuccessListener(doc -> {
+                    if (doc.exists()) {
+                        currentUsername = doc.getString("username");
+                        usernameDisplay.setText(currentUsername != null ? currentUsername : "Unnamed User");
                     } else {
                         usernameDisplay.setText("No user data found");
                     }
@@ -138,43 +168,33 @@ public class SettingsActivity extends AppCompatActivity {
                 });
     }
 
-    // -------------------- HISTORY --------------------
-    /** Load plant capture history from Firestore into the list. */
+    // ------------------------------------------------------------------
+    // HISTORY
+    // ------------------------------------------------------------------
     private void loadHistory() {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) {
-            Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        String uid = user.getUid();
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-
         db.collection("users")
-                .document(uid)
+                .document(currentUid)
                 .collection("captures")
-                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .orderBy("timestamp", Query.Direction.DESCENDING)
                 .get()
-                .addOnSuccessListener(querySnapshot -> {
+                .addOnSuccessListener(qs -> {
                     historyItems.clear();
-
-                    for (QueryDocumentSnapshot doc : querySnapshot) {
+                    for (QueryDocumentSnapshot doc : qs) {
                         String docId = doc.getId();
                         String imageUrl = doc.getString("url");
                         String role = doc.getString("role");
                         String commonName = doc.getString("commonName");
-                        String dateTime = doc.getString("dateTime"); // optional, fallback
+                        String dateTime = doc.getString("dateTime");
                         String scientificName = doc.getString("scientificName");
                         String description = doc.getString("description");
                         Long confLong = doc.getLong("confidence");
-                        int confidence = confLong != null ? confLong.intValue() : 0;
-
+                        int confidence = Math.toIntExact(confLong != null ? confLong : 0);
                         Long tsLong = doc.getLong("timestamp");
                         long timestamp = tsLong != null ? tsLong : 0L;
 
                         if (imageUrl == null) continue;
 
-                        PlantCapture item = new PlantCapture(
+                        historyItems.add(new PlantCapture(
                                 docId,
                                 imageUrl,
                                 role != null ? role : "Hiker",
@@ -184,27 +204,21 @@ public class SettingsActivity extends AppCompatActivity {
                                 description,
                                 confidence,
                                 timestamp
-                        );
-                        historyItems.add(item);
+                        ));
                     }
-
                     historyAdapter.notifyDataSetChanged();
                     updatePlantStats(historyItems.size());
                 })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this,
-                            "Failed to load plant history: " + e.getMessage(),
-                            Toast.LENGTH_SHORT).show();
-                });
+                .addOnFailureListener(e ->
+                        Toast.makeText(this, "Failed to load plant history: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show());
     }
 
-    /** Update the counter text, rank text, and progress bar based on number of plants. */
     private void updatePlantStats(int count) {
         plantCounterText.setText("You've identified " + count + " plants!");
 
         String rank;
-        int progress; // 0-100
-
+        int progress;
         if (count <= 0) {
             rank = "You are a Plant Beginner";
             progress = 0;
@@ -218,60 +232,44 @@ public class SettingsActivity extends AppCompatActivity {
         } else {
             rank = "You are a Plant Pro";
             int stageCount = count - 6;
-            if (stageCount <= 0) {
-                progress = 0;
-            } else if (stageCount < 4) {
-                progress = (int) Math.round((stageCount / 4.0) * 100.0);
-            } else {
-                progress = 100;
-            }
+            if (stageCount <= 0) progress = 0;
+            else if (stageCount < 4) progress = (int) Math.round((stageCount / 4.0) * 100.0);
+            else progress = 100;
         }
 
         plantRankingText.setText(rank);
         rankProgressBar.setProgress(progress);
     }
 
-    /** Clear all history entries from Firestore (for this user). */
     private void clearHistory() {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) {
-            Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
         if (historyItems.isEmpty()) {
             Toast.makeText(this, "No history to clear", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        String uid = user.getUid();
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-
         for (PlantCapture item : historyItems) {
             db.collection("users")
-                    .document(uid)
+                    .document(currentUid)
                     .collection("captures")
                     .document(item.docId)
                     .delete();
         }
-
         historyItems.clear();
         historyAdapter.notifyDataSetChanged();
         updatePlantStats(0);
         Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show();
     }
 
-    // ---------- Model class for a capture ----------
     private static class PlantCapture {
         final String docId;
         final String imageUrl;
         final String role;
         final String commonName;
-        final String dateTime;      // original string (if any)
+        final String dateTime;
         final String scientificName;
         final String description;
         final int confidence;
-        final long timestamp;       // for formatted date
+        final long timestamp;
 
         PlantCapture(String docId,
                      String imageUrl,
@@ -294,11 +292,10 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    // ---------- Adapter: history row uses left title + right date ----------
     private class HistoryAdapter extends ArrayAdapter<PlantCapture> {
-
         private final LayoutInflater inflater = LayoutInflater.from(SettingsActivity.this);
-        private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault());
+        private final SimpleDateFormat sdf =
+                new SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault());
 
         HistoryAdapter(List<PlantCapture> items) {
             super(SettingsActivity.this, 0, items);
@@ -317,19 +314,13 @@ public class SettingsActivity extends AppCompatActivity {
             PlantCapture item = getItem(position);
             if (item != null) {
                 String name = (item.commonName != null && !item.commonName.isEmpty())
-                        ? item.commonName
-                        : "Unknown Plant";
+                        ? item.commonName : "Unknown Plant";
                 String role = (item.role != null && !item.role.isEmpty())
-                        ? item.role
-                        : "Unknown Role";
+                        ? item.role : "Unknown Role";
 
-                // Left: "Poison ivy · Hiker"
                 titleTv.setText(name + " · " + role);
-
-                // Right: formatted date
                 dateTv.setText(formatDate(item));
 
-                // Click opens HistoryDescriptionActivity
                 row.setOnClickListener(v -> {
                     Intent intent = new Intent(SettingsActivity.this, HistoryDescriptionActivity.class);
                     intent.putExtra("docId", item.docId);
@@ -340,20 +331,16 @@ public class SettingsActivity extends AppCompatActivity {
                     intent.putExtra("description", item.description);
                     intent.putExtra("confidence", item.confidence);
                     intent.putExtra("dateTime", item.dateTime);
-                    // owner → can delete
                     intent.putExtra("allowDelete", true);
                     startActivity(intent);
                 });
             }
-
             return row;
         }
 
         private String formatDate(PlantCapture item) {
-            if (item == null) return "";
             if (item.timestamp > 0L) {
-                Date d = new Date(item.timestamp);
-                return sdf.format(d);
+                return sdf.format(new Date(item.timestamp));
             }
             if (item.dateTime != null && !item.dateTime.isEmpty()) {
                 return item.dateTime;
@@ -362,9 +349,9 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    // -------------------- FRIENDS LIST --------------------
-
-    /** Model for friends shown under plant history. */
+    // ------------------------------------------------------------------
+    // FRIENDS LIST (BOTTOM)
+    // ------------------------------------------------------------------
     private static class FriendItem {
         final String friendUid;
         final String friendUsername;
@@ -375,64 +362,32 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    /** Load this user's friends from Firestore into friendsListView. */
     private void loadFriends() {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) {
-            Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        String uid = user.getUid();
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-
         db.collection("users")
-                .document(uid)
-                .collection("friends")
-                .get()   // no orderBy to avoid index issues
-                .addOnSuccessListener(querySnapshot -> {
+                .document(currentUid)
+                .collection(SUB_FRIENDS)
+                .get()
+                .addOnSuccessListener(qs -> {
                     friendItems.clear();
-
-                    for (QueryDocumentSnapshot doc : querySnapshot) {
-                        // Try flexible field names so it works with your existing data
+                    for (QueryDocumentSnapshot doc : qs) {
                         String friendUid = doc.getString("friendUid");
-                        if (friendUid == null || friendUid.isEmpty()) {
-                            // Fall back to doc ID if you used that
+                        if (friendUid == null || friendUid.isEmpty())
                             friendUid = doc.getId();
-                        }
 
                         String friendUsername = doc.getString("friendUsername");
-                        if (friendUsername == null) {
-                            friendUsername = doc.getString("username");
-                        }
-                        if (friendUsername == null) {
-                            friendUsername = doc.getString("displayName");
-                        }
-                        if (friendUsername == null) {
-                            friendUsername = friendUid; // last resort
-                        }
+                        if (friendUsername == null) friendUsername = friendUid;
 
                         if (friendUid == null || friendUid.isEmpty()) continue;
-
                         friendItems.add(new FriendItem(friendUid, friendUsername));
                     }
-
                     friendAdapter.notifyDataSetChanged();
-
-                    // Debug toast so you see that it actually loaded something
-                    //Toast.makeText(this,
-                            //"Loaded " + friendItems.size() + " friends",
-                            //Toast.LENGTH_SHORT).show();
                 })
                 .addOnFailureListener(e ->
-                        Toast.makeText(this,
-                                "Failed to load friends: " + e.getMessage(),
+                        Toast.makeText(this, "Failed to load friends: " + e.getMessage(),
                                 Toast.LENGTH_SHORT).show());
     }
 
-    /** Adapter for friends list – same style rectangles, click → friend profile. */
     private class FriendAdapter extends ArrayAdapter<FriendItem> {
-
         FriendAdapter(List<FriendItem> items) {
             super(SettingsActivity.this, android.R.layout.simple_list_item_1, items);
         }
@@ -456,8 +411,6 @@ public class SettingsActivity extends AppCompatActivity {
             FriendItem item = getItem(position);
             if (item != null) {
                 btn.setText(item.friendUsername);
-
-                // tap friend → open their profile page
                 btn.setOnClickListener(v -> {
                     Intent intent = new Intent(SettingsActivity.this, FriendProfileActivity.class);
                     intent.putExtra("friendUid", item.friendUid);
@@ -465,8 +418,429 @@ public class SettingsActivity extends AppCompatActivity {
                     startActivity(intent);
                 });
             }
-
             return btn;
         }
+    }
+
+    // ------------------------------------------------------------------
+    // FRIEND REQUEST POPUP
+    // ------------------------------------------------------------------
+
+    /** Item for incoming/outgoing lists. */
+    private static class FriendRequestItem {
+        final String otherUid;
+        final String otherUsername;
+
+        FriendRequestItem(String otherUid, String otherUsername) {
+            this.otherUid = otherUid;
+            this.otherUsername = otherUsername;
+        }
+    }
+
+    private void openFriendsDialog() {
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View dialogView = inflater.inflate(R.layout.dialog_friends, null, false);
+
+        ListView incomingListView = dialogView.findViewById(R.id.incomingListView);
+        ListView outgoingListView = dialogView.findViewById(R.id.outgoingListView);
+        Button openSendRequestBtn = dialogView.findViewById(R.id.buttonOpenSendRequest);
+
+        incomingAdapter = new IncomingAdapter(incomingRequests);
+        outgoingAdapter = new OutgoingAdapter(outgoingRequests);
+        incomingListView.setAdapter(incomingAdapter);
+        outgoingListView.setAdapter(outgoingAdapter);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setCancelable(true)
+                .create();
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        // open username popup
+        openSendRequestBtn.setOnClickListener(v -> openSendRequestDialog(dialog));
+
+        dialog.show();
+
+        // Load requests after showing so adapters are ready
+        loadFriendRequests(() -> {
+            incomingAdapter.notifyDataSetChanged();
+            outgoingAdapter.notifyDataSetChanged();
+            updateFriendRequestBadge();
+        });
+    }
+
+
+    private void openSendRequestDialog(AlertDialog parentDialog) {
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View view = inflater.inflate(R.layout.dialog_send_friend_request, null, false);
+
+        TextView errorTv = view.findViewById(R.id.errorText);
+        TextView usernameInput = view.findViewById(R.id.editTextFriendUsername);
+        Button sendBtn = view.findViewById(R.id.buttonSendRequest);
+        Button cancelBtn = view.findViewById(R.id.buttonCancelSend);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(view)
+                .setCancelable(true)
+                .create();
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        cancelBtn.setOnClickListener(v -> dialog.dismiss());
+
+        sendBtn.setOnClickListener(v -> {
+            String targetName = usernameInput.getText().toString().trim();
+            if (targetName.isEmpty()) {
+                errorTv.setText("Enter a username");
+                errorTv.setVisibility(View.VISIBLE);
+                return;
+            }
+            if (currentUsername != null &&
+                    targetName.equalsIgnoreCase(currentUsername)) {
+                errorTv.setText("You cannot send a request to yourself");
+                errorTv.setVisibility(View.VISIBLE);
+                return;
+            }
+
+            sendFriendRequest(targetName,
+                    () -> {
+                        dialog.dismiss();
+                        // refresh lists in parent popup
+                        loadFriendRequests(() -> {
+                            incomingAdapter.notifyDataSetChanged();
+                            outgoingAdapter.notifyDataSetChanged();
+                            updateFriendRequestBadge();
+                        });
+                    },
+                    msg -> {
+                        errorTv.setText(msg);
+                        errorTv.setVisibility(View.VISIBLE);
+                    });
+        });
+
+        dialog.show();
+    }
+
+    /** Load all incoming/outgoing requests once. */
+    private void loadFriendRequests(Runnable onDone) {
+        incomingRequests.clear();
+        outgoingRequests.clear();
+
+        // incoming
+        db.collection("users")
+                .document(currentUid)
+                .collection(SUB_REQ_IN)
+                .get()
+                .addOnSuccessListener(qs -> {
+                    for (QueryDocumentSnapshot doc : qs) {
+                        String fromUid = doc.getString("fromUid");
+                        String fromUsername = doc.getString("fromUsername");
+                        if (fromUid == null || fromUid.isEmpty()) continue;
+                        incomingRequests.add(new FriendRequestItem(
+                                fromUid,
+                                fromUsername != null ? fromUsername : fromUid
+                        ));
+                    }
+                    // outgoing (inside success so both done before onDone)
+                    db.collection("users")
+                            .document(currentUid)
+                            .collection(SUB_REQ_OUT)
+                            .get()
+                            .addOnSuccessListener(qsOut -> {
+                                for (QueryDocumentSnapshot doc : qsOut) {
+                                    String toUid = doc.getString("toUid");
+                                    String toUsername = doc.getString("toUsername");
+                                    if (toUid == null || toUid.isEmpty()) continue;
+                                    outgoingRequests.add(new FriendRequestItem(
+                                            toUid,
+                                            toUsername != null ? toUsername : toUid
+                                    ));
+                                }
+                                if (onDone != null) onDone.run();
+                            })
+                            .addOnFailureListener(e -> {
+                                Toast.makeText(this,
+                                        "Failed to load outgoing requests: " + e.getMessage(),
+                                        Toast.LENGTH_SHORT).show();
+                                if (onDone != null) onDone.run();
+                            });
+
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this,
+                            "Failed to load incoming requests: " + e.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                    if (onDone != null) onDone.run();
+                });
+    }
+
+    private void loadFriendRequestCounts() {
+        db.collection("users")
+                .document(currentUid)
+                .collection(SUB_REQ_IN)
+                .get()
+                .addOnSuccessListener(qs -> {
+                    int count = qs.size();
+                    if (count <= 0) {
+                        friendRequestBadge.setVisibility(View.GONE);
+                    } else {
+                        friendRequestBadge.setVisibility(View.VISIBLE);
+                        friendRequestBadge.setText(String.valueOf(count));
+                    }
+                })
+                .addOnFailureListener(e -> friendRequestBadge.setVisibility(View.GONE));
+    }
+
+    private void updateFriendRequestBadge() {
+        int count = incomingRequests.size();
+        if (count <= 0) {
+            friendRequestBadge.setVisibility(View.GONE);
+        } else {
+            friendRequestBadge.setVisibility(View.VISIBLE);
+            friendRequestBadge.setText(String.valueOf(count));
+        }
+    }
+
+    /** Actually send a friend request given a username. */
+    private void sendFriendRequest(String targetUsername,
+                                   Runnable onSuccess,
+                                   java.util.function.Consumer<String> onError) {
+        // 1) look up that username
+        db.collection("users")
+                .whereEqualTo("username", targetUsername)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(qs -> {
+                    if (qs.isEmpty()) {
+                        onError.accept("No user found with that username");
+                        return;
+                    }
+
+                    String targetUid = qs.getDocuments().get(0).getId();
+                    String targetName = qs.getDocuments().get(0).getString("username");
+
+                    // extra safety
+                    if (targetUid.equals(currentUid)) {
+                        onError.accept("You cannot send a request to yourself");
+                        return;
+                    }
+
+                    // 2) check not already a friend
+                    db.collection("users")
+                            .document(currentUid)
+                            .collection(SUB_FRIENDS)
+                            .document(targetUid)
+                            .get()
+                            .addOnSuccessListener(friendDoc -> {
+                                if (friendDoc.exists()) {
+                                    onError.accept("You are already friends");
+                                    return;
+                                }
+
+                                // 3) create symmetrical request docs (id = other UID)
+                                DocumentReference myOutRef = db.collection("users")
+                                        .document(currentUid)
+                                        .collection(SUB_REQ_OUT)
+                                        .document(targetUid);
+
+                                DocumentReference theirInRef = db.collection("users")
+                                        .document(targetUid)
+                                        .collection(SUB_REQ_IN)
+                                        .document(currentUid);
+
+                                Map<String, Object> outData = new HashMap<>();
+                                outData.put("toUid", targetUid);
+                                outData.put("toUsername", targetName);
+                                outData.put("status", "pending");
+
+                                Map<String, Object> inData = new HashMap<>();
+                                inData.put("fromUid", currentUid);
+                                inData.put("fromUsername", currentUsername);
+                                inData.put("status", "pending");
+
+                                Tasks.whenAll(
+                                                myOutRef.set(outData),
+                                                theirInRef.set(inData))
+                                        .addOnSuccessListener(aVoid -> {
+                                            Toast.makeText(this, "Request sent", Toast.LENGTH_SHORT).show();
+                                            if (onSuccess != null) onSuccess.run();
+                                        })
+                                        .addOnFailureListener(e ->
+                                                onError.accept("Failed to send: " + e.getMessage()));
+                            })
+                            .addOnFailureListener(e ->
+                                    onError.accept("Error checking friends: " + e.getMessage()));
+                })
+                .addOnFailureListener(e ->
+                        onError.accept("Failed to search user: " + e.getMessage()));
+    }
+
+    // ----- incoming / outgoing list adapters -----
+
+    private class IncomingAdapter extends ArrayAdapter<FriendRequestItem> {
+        IncomingAdapter(List<FriendRequestItem> items) {
+            super(SettingsActivity.this, 0, items);
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            View row = convertView;
+            if (row == null) {
+                row = LayoutInflater.from(SettingsActivity.this)
+                        .inflate(R.layout.item_incoming_request, parent, false);
+            }
+
+            TextView nameTv = row.findViewById(R.id.requestUsername);
+            Button acceptBtn = row.findViewById(R.id.buttonAccept);
+            Button denyBtn   = row.findViewById(R.id.buttonDeny);
+
+            FriendRequestItem item = getItem(position);
+            if (item != null) {
+                nameTv.setText(item.otherUsername);
+
+                acceptBtn.setOnClickListener(v -> acceptRequest(item));
+                denyBtn.setOnClickListener(v -> denyRequest(item));
+            }
+
+            return row;
+        }
+    }
+
+    private class OutgoingAdapter extends ArrayAdapter<FriendRequestItem> {
+        OutgoingAdapter(List<FriendRequestItem> items) {
+            super(SettingsActivity.this, 0, items);
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            View row = convertView;
+            if (row == null) {
+                row = LayoutInflater.from(SettingsActivity.this)
+                        .inflate(R.layout.item_outgoing_request, parent, false);
+            }
+
+            TextView nameTv = row.findViewById(R.id.requestUsername);
+            Button cancelBtn = row.findViewById(R.id.buttonCancelRequest);
+
+            FriendRequestItem item = getItem(position);
+            if (item != null) {
+                nameTv.setText(item.otherUsername);
+                cancelBtn.setOnClickListener(v -> cancelOutgoingRequest(item));
+            }
+
+            return row;
+        }
+    }
+
+    private void acceptRequest(FriendRequestItem item) {
+        String otherUid = item.otherUid;
+        String otherName = item.otherUsername;
+
+        // add friends both sides
+        Map<String, Object> meFriend = new HashMap<>();
+        meFriend.put("friendUid", otherUid);
+        meFriend.put("friendUsername", otherName);
+
+        Map<String, Object> themFriend = new HashMap<>();
+        themFriend.put("friendUid", currentUid);
+        themFriend.put("friendUsername", currentUsername);
+
+        DocumentReference meFriendRef = db.collection("users")
+                .document(currentUid)
+                .collection(SUB_FRIENDS)
+                .document(otherUid);
+
+        DocumentReference themFriendRef = db.collection("users")
+                .document(otherUid)
+                .collection(SUB_FRIENDS)
+                .document(currentUid);
+
+        // remove requests both sides (incoming for me, outgoing for them)
+        DocumentReference myIncomingRef = db.collection("users")
+                .document(currentUid)
+                .collection(SUB_REQ_IN)
+                .document(otherUid);
+
+        DocumentReference theirOutgoingRef = db.collection("users")
+                .document(otherUid)
+                .collection(SUB_REQ_OUT)
+                .document(currentUid);
+
+        Tasks.whenAll(
+                        meFriendRef.set(meFriend),
+                        themFriendRef.set(themFriend),
+                        myIncomingRef.delete(),
+                        theirOutgoingRef.delete())
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Friend added", Toast.LENGTH_SHORT).show();
+
+                    // update local lists + UI
+                    incomingRequests.remove(item);
+                    incomingAdapter.notifyDataSetChanged();
+                    updateFriendRequestBadge();
+                    loadFriends(); // refresh bottom list
+                })
+                .addOnFailureListener(e ->
+                        Toast.makeText(this, "Failed to accept: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show());
+    }
+
+    private void denyRequest(FriendRequestItem item) {
+        String otherUid = item.otherUid;
+
+        DocumentReference myIncomingRef = db.collection("users")
+                .document(currentUid)
+                .collection(SUB_REQ_IN)
+                .document(otherUid);
+
+        DocumentReference theirOutgoingRef = db.collection("users")
+                .document(otherUid)
+                .collection(SUB_REQ_OUT)
+                .document(currentUid);
+
+        Tasks.whenAll(
+                        myIncomingRef.delete(),
+                        theirOutgoingRef.delete())
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Request denied", Toast.LENGTH_SHORT).show();
+                    incomingRequests.remove(item);
+                    incomingAdapter.notifyDataSetChanged();
+                    updateFriendRequestBadge();
+                })
+                .addOnFailureListener(e ->
+                        Toast.makeText(this, "Failed to deny: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show());
+    }
+
+    private void cancelOutgoingRequest(FriendRequestItem item) {
+        String otherUid = item.otherUid;
+
+        DocumentReference myOutgoingRef = db.collection("users")
+                .document(currentUid)
+                .collection(SUB_REQ_OUT)
+                .document(otherUid);
+
+        DocumentReference theirIncomingRef = db.collection("users")
+                .document(otherUid)
+                .collection(SUB_REQ_IN)
+                .document(currentUid);
+
+        Tasks.whenAll(
+                        myOutgoingRef.delete(),
+                        theirIncomingRef.delete())
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Request cancelled", Toast.LENGTH_SHORT).show();
+                    outgoingRequests.remove(item);
+                    outgoingAdapter.notifyDataSetChanged();
+                    updateFriendRequestBadge();
+                })
+                .addOnFailureListener(e ->
+                        Toast.makeText(this, "Failed to cancel: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show());
     }
 }

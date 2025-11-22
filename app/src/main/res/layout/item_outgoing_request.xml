@@ -5,31 +5,24 @@
     android:orientation="horizontal"
     android:padding="8dp"
     android:background="@drawable/history_item_bg"
-    android:layout_marginTop="4dp"
-    android:layout_marginBottom="4dp">
+    android:gravity="center_vertical">
 
     <TextView
-        android:id="@+id/usernameText"
+        android:id="@+id/requestUsername"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="OtherUser"
-        android:textSize="16sp"
+        android:text="username"
         android:textColor="@color/history_item_text"
-        android:maxLines="1"
-        android:ellipsize="end" />
+        android:textSize="14sp" />
 
     <Button
-        android:id="@+id/cancelButton"
+        android:id="@+id/buttonCancelRequest"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Cancel"
-        android:textStyle="bold"
         android:backgroundTint="@android:color/transparent"
-        android:textColor="#FFCDD2"
-        android:foreground="?attr/selectableItemBackground"
-        android:minWidth="0dp"
-        android:paddingLeft="12dp"
-        android:paddingRight="12dp"
-        android:layout_marginStart="8dp" />
+        android:textColor="#FFECB3"
+        android:textSize="12sp" />
+
 </LinearLayout>
