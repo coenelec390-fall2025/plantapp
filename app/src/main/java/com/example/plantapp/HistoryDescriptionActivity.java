@@ -14,6 +14,7 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -61,7 +62,6 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         // Whether the user is allowed to delete this history entry
         boolean allowDelete = i.getBooleanExtra("allowDelete", true);
 
-
         if (imageUrl == null || imageUrl.trim().isEmpty()) {
             Toast.makeText(this, "Missing image URL", Toast.LENGTH_LONG).show();
             finish();
@@ -94,10 +94,10 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
             plantTitle.setText("Plant Description\n" + userRole);
         }
 
-// ---- Back button ----
+        // ---- Back button ----
         backBtn.setOnClickListener(v -> finish());
 
-// ---- Configure delete button (respect allowDelete) ----
+        // ---- Configure delete button (respect allowDelete) ----
         if (!allowDelete) {
             // Friend's capture → hide delete
             deleteBtn.setVisibility(View.GONE);
@@ -108,16 +108,19 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
             deleteBtn.setOnClickListener(v -> deleteCurrentHistoryEntry());
         }
 
-
         // ---- Set UI text ----
         commonNameTv.setText(commonName != null ? commonName : "Unknown Plant");
         scientificNameTv.setText(scientificName != null ? scientificName : "");
+
+        // description saved from DescriptionActivity already includes formatting + alternates
         descriptionTv.setText(formatPoints(description));
+
         confidenceBar.setProgress(confidence);
         confidenceTv.setText("Confidence: " + confidence + "%");
 
         confidenceTv.setVisibility(View.VISIBLE);
         confidenceBar.setVisibility(View.VISIBLE);
+        applyConfidenceColor(confidence);
 
         // ---- Load image ----
         loadImageFromStorage(imageUrl);
@@ -194,5 +197,13 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         if (text == null) return "";
         String formatted = text.replaceAll("\\s*>\\s*", "\n\n");
         return formatted.trim();
+    }
+
+    private void applyConfidenceColor(int score) {
+        int res = (score > 80)
+                ? R.drawable.progress_green
+                : (score >= 50 ? R.drawable.progress_yellow : R.drawable.progress_red);
+        confidenceBar.setProgressDrawable(ContextCompat.getDrawable(this, res));
+        confidenceBar.setProgress(confidenceBar.getProgress());
     }
 }
