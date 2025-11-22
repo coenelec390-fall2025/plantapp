@@ -9,9 +9,10 @@
     android:orientation="vertical"
     android:gravity="center_horizontal"
     android:padding="24dp"
-    android:background="#E8F5E9"
+    android:background="@drawable/profile_bg_gradient"
     tools:context=".SettingsActivity">
 
+    <!-- Top bar -->
     <ImageButton
         android:id="@+id/BackButton"
         android:layout_width="40dp"
@@ -20,100 +21,117 @@
         android:contentDescription="Back"
         android:src="@android:drawable/ic_media_previous"
         android:layout_gravity="start"
-        android:layout_marginBottom="4dp"
-        app:tint="#2E7D32" />
+        android:layout_marginBottom="8dp"
+        app:tint="#E8F5E9" />
 
+    <!-- Title -->
     <TextView
         android:id="@+id/textViewTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="8dp"
         android:text="Profile"
-        android:textColor="#2E7D32"
+        android:textColor="#E8F5E9"
         android:textSize="28sp"
         android:textStyle="bold" />
 
-    <TextView
-        android:id="@+id/UsernameDisplay"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Username"
-        android:textAlignment="center"
-        android:textSize="22sp"
-        android:textColor="#1B5E20"
-        android:layout_marginBottom="12dp" />
-
-    <TextView
-        android:id="@+id/PlantCounterText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="You've identified 0 plants!"
-        android:textAlignment="center"
-        android:textColor="#388E3C"
-        android:textSize="16sp"
-        android:layout_marginBottom="6dp" />
-
-    <TextView
-        android:id="@+id/PlantRankingText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="You are a Plant Amateur"
-        android:textAlignment="center"
-        android:textColor="#388E3C"
-        android:textSize="16sp"
-        android:layout_marginBottom="6dp" />
-
-    <ProgressBar
-        android:id="@+id/RankProgressBar"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="10dp"
-        android:layout_marginBottom="16dp"
-        android:max="100"
-        android:progress="30"
-        android:progressDrawable="@drawable/green_progress_bg" />
-
-    <TextView
-        android:id="@+id/PlantHistoryTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Plant History"
-        android:textColor="#2E7D32"
-        android:textStyle="bold"
-        android:textSize="18sp"
-        android:layout_marginBottom="6dp" />
-
-    <ListView
-        android:id="@+id/listView"
+    <!-- Card container for the content -->
+    <LinearLayout
+        android:id="@+id/profileCard"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="@drawable/rounded_list_bg"
-        android:padding="10dp"
-        android:divider="#A5D6A7"
-        android:dividerHeight="1dp"
-        android:elevation="4dp"
-        android:scrollbars="vertical"
-        android:layout_marginBottom="16dp" />
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/profile_card_bg"
+        android:elevation="6dp">
 
+        <TextView
+            android:id="@+id/UsernameDisplay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Username"
+            android:textAlignment="center"
+            android:textSize="22sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginBottom="8dp" />
 
+        <TextView
+            android:id="@+id/PlantCounterText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="You've identified 0 plants!"
+            android:textAlignment="center"
+            android:textColor="#A5D6A7"
+            android:textSize="15sp"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/PlantRankingText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="You are a Plant Amateur"
+            android:textAlignment="center"
+            android:textColor="#A5D6A7"
+            android:textSize="15sp"
+            android:layout_marginBottom="12dp" />
+
+        <ProgressBar
+            android:id="@+id/RankProgressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="8dp"
+            android:max="100"
+            android:progress="30"
+            android:progressDrawable="@drawable/green_progress_bg"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:id="@+id/PlantHistoryTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Plant History"
+            android:textColor="#E8F5E9"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            android:layout_marginBottom="6dp" />
+
+        <ListView
+            android:id="@+id/listView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:padding="0dp"
+            android:divider="#264935"
+            android:dividerHeight="1dp"
+            android:scrollbars="vertical" />
+
+    </LinearLayout>
+
+    <!-- Bottom buttons (outside the card so they float on background like main FAB) -->
     <Button
         android:id="@+id/ClearHistoryButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Clear History"
-        android:backgroundTint="#A5D6A7"
-        android:textColor="#1B5E20"
+        android:backgroundTint="@android:color/transparent"
+        android:textColor="#6EF7A7"
         android:textStyle="bold"
-        android:layout_marginBottom="10dp" />
+        android:layout_marginBottom="8dp"
+        android:foreground="?attr/selectableItemBackground"
+        android:padding="10dp" />
 
     <Button
         android:id="@+id/LogoutButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:backgroundTint="#47D04C"
         android:text="Log Out"
-        android:backgroundTint="#2E7D32"
-        android:textColor="#FFFFFF"
+        android:textColor="#001018"
         android:textStyle="bold" />
 
 </LinearLayout>

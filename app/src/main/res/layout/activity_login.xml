@@ -6,78 +6,97 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    android:padding="32dp"
-    android:background="#E8F5E9"
+    android:padding="24dp"
+    android:background="@drawable/profile_bg_gradient"
     tools:context=".LoginActivity">
 
-    <TextView
-        android:id="@+id/textViewTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="40dp"
-        android:text="SureLeaf"
-        android:textColor="#2E7D32"
-        android:textSize="32sp"
-        android:textStyle="bold" />
-
-    <EditText
-        android:id="@+id/editTextEmail"
+    <!-- Card container (reuses the same style as profile card) -->
+    <LinearLayout
+        android:id="@+id/loginCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Email"
-        android:inputType="textEmailAddress"
-        android:background="@android:drawable/edit_text"
-        android:padding="12dp"
-        android:layout_marginBottom="16dp" />
+        android:orientation="vertical"
+        android:background="@drawable/profile_card_bg"
+        android:padding="24dp">
 
-    <EditText
-        android:id="@+id/editTextPassword"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Password"
-        android:inputType="textPassword"
-        android:background="@android:drawable/edit_text"
-        android:padding="12dp"
-        android:layout_marginBottom="12dp" />
+        <TextView
+            android:id="@+id/textViewTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="32dp"
+            android:text="SureLeaf"
+            android:textColor="#57C35B"
+            android:textSize="32sp"
+            android:textStyle="bold" />
 
-    <!-- Added reset password text here -->
-    <TextView
-        android:id="@+id/textViewForgotPassword"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Forgot Password?"
-        android:textColor="#1B5E20"
-        android:textStyle="bold"
-        android:textSize="14sp"
-        android:layout_marginBottom="24dp"
-        android:clickable="true"
-        android:focusable="true" />
+        <EditText
+            android:id="@+id/editTextEmail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Email"
+            android:inputType="textEmailAddress"
+            android:background="@android:drawable/edit_text"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp"
+            android:textColor="#E8F5E9"
+            android:textColorHint="#7A8E96" />
 
-    <Button
-        android:id="@+id/buttonLogin"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Login"
-        android:backgroundTint="#66BB6A"
-        android:textColor="#FFFFFF"
-        android:textStyle="bold"
-        android:layout_marginBottom="16dp" />
+        <EditText
+            android:id="@+id/editTextPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Password"
+            android:inputType="textPassword"
+            android:background="@android:drawable/edit_text"
+            android:padding="12dp"
+            android:layout_marginBottom="12dp"
+            android:textColor="#E8F5E9"
+            android:textColorHint="#7A8E96" />
 
-    <TextView
-        android:id="@+id/textViewOr"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Don't have an account?"
-        android:textColor="#4E4E4E"
-        android:layout_marginBottom="8dp" />
+        <TextView
+            android:id="@+id/textViewForgotPassword"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginBottom="24dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:text="Forgot Password?"
+            android:textColor="#57C35B"
+            android:textSize="14sp"
+            android:textStyle="bold" />
 
-    <Button
-        android:id="@+id/buttonCreateAccount"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Create Account"
-        android:backgroundTint="#A5D6A7"
-        android:textColor="#1B5E20"
-        android:textStyle="bold" />
+        <Button
+            android:id="@+id/buttonLogin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:backgroundTint="#57C35B"
+            android:text="Login"
+            android:textColor="#001018"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textViewOr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:text="Don't have an account?"
+            android:textColor="#B0BEC5"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/buttonCreateAccount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@android:color/transparent"
+            android:foreground="?attr/selectableItemBackground"
+            android:padding="10dp"
+            android:text="Create Account"
+            android:textColor="#57C35B"
+            android:textStyle="bold" />
+
+    </LinearLayout>
 
 </LinearLayout>
