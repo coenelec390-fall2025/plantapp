@@ -331,9 +331,11 @@ public class SettingsActivity extends AppCompatActivity {
                     intent.putExtra("description", item.description);
                     intent.putExtra("confidence", item.confidence);
                     intent.putExtra("dateTime", item.dateTime);
+                    // owner → can delete
                     intent.putExtra("allowDelete", true);
                     startActivity(intent);
                 });
+
             }
             return row;
         }

@@ -306,6 +306,7 @@ public class FriendProfileActivity extends AppCompatActivity {
                     intent.putExtra("allowDelete", false); // cannot delete friend history
                     startActivity(intent);
                 });
+
             }
 
             return row;
