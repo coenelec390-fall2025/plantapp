@@ -2,4 +2,10 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="history_item_bg">#233238</color>      <!-- dark card -->
+    <color name="history_item_accent">#6EF7A7</color> <!-- plant neon -->
+    <color name="history_item_text">#E8F5E9</color>   <!-- light text -->
+
+
+
 </resources>

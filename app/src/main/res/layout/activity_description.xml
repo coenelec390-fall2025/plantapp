@@ -6,126 +6,185 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#E8F5E9"
-    android:padding="24dp"
+    android:background="#FFFFFF"
+    android:fitsSystemWindows="true"
     tools:context=".DescriptionActivity">
 
+    <!-- Outer container to center content and keep clean margins -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="center_horizontal">
+        android:gravity="center"
+        android:padding="16dp">
 
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp">
-
-            <ImageButton
-                android:id="@+id/BackButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="@android:color/transparent"
-                android:src="@android:drawable/ic_media_previous"
-                app:tint="#2E7D32"
-                android:contentDescription="Back"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true" />
-
-            <TextView
-                android:id="@+id/PlantTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Plant Details"
-                android:textColor="#2E7D32"
-                android:textSize="28sp"
-                android:textStyle="bold"
-                android:layout_centerHorizontal="true"
-                android:layout_centerVertical="true"
-                android:gravity="center" />
-        </RelativeLayout>
-
+        <!-- Constrained content width -->
         <LinearLayout
+            android:id="@+id/ContentWrapper"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gravity="center_horizontal">
+            android:gravity="center_horizontal"
+            android:padding="0dp">
 
-            <ImageView
-                android:id="@+id/PlantImageView"
-                android:layout_width="match_parent"
-                android:layout_height="200dp"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="16dp"
-                android:layout_weight="0"
-                android:adjustViewBounds="true"
-                android:background="@drawable/image_placeholder_bg"
-                android:scaleType="centerCrop"
-                app:layout_constraintWidth_percent="0.85" />
-
-            <TextView
-                android:id="@+id/PlantNameText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Common Name"
-                android:textColor="#1B5E20"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="4dp"
-                android:gravity="center" />
-
-            <TextView
-                android:id="@+id/PlantScientificNameText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:gravity="center"
-                android:textColor="#388E3C"
-                android:textSize="18sp" />
-
-            <ProgressBar
-                android:id="@+id/ConfidenceBar"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="12dp"
-                android:max="100"
-                android:progress="0"
-                android:progressDrawable="@drawable/green_progress_bg"
-                android:layout_marginBottom="8dp" />
-
-            <TextView
-                android:id="@+id/ConfidenceText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:gravity="center"
-                android:text="Confidence:"
-                android:textColor="#2E7D32"
-                android:textSize="16sp" />
-
-            <TextView
-                android:id="@+id/PlantDescriptionText"
+            <!-- Top bar -->
+            <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp">
+
+                <ImageButton
+                    android:id="@+id/BackButton"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="@android:color/transparent"
+                    android:src="@android:drawable/ic_media_previous"
+                    app:tint="#2E7D32"
+                    android:contentDescription="Back"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true" />
+
+                <TextView
+                    android:id="@+id/PlantTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Plant Details"
+                    android:textColor="#1B5E20"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.02"
+                    android:layout_centerHorizontal="true"
+                    android:layout_centerVertical="true"
+                    android:gravity="center" />
+            </RelativeLayout>
+
+            <!-- Image card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
                 android:background="@drawable/rounded_list_bg"
-                android:gravity="start"
-                android:lineSpacingExtra="4dp"
-                android:padding="16dp"
-                android:textColor="#2E7D32"
-                android:textSize="16sp" />
+                android:padding="10dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp">
 
+                <ImageView
+                    android:id="@+id/PlantImageView"
+                    android:layout_width="match_parent"
+                    android:layout_height="210dp"
+                    android:adjustViewBounds="true"
+                    android:background="@drawable/image_placeholder_bg"
+                    android:scaleType="centerCrop" />
+            </LinearLayout>
+
+            <!-- Names + confidence card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/rounded_list_bg"
+                android:padding="12dp"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:id="@+id/PlantNameText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Common Name"
+                    android:textColor="#1B5E20"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:layout_gravity="center_horizontal"
+                    android:gravity="center"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginBottom="2dp" />
+
+                <TextView
+                    android:id="@+id/PlantScientificNameText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#388E3C"
+                    android:textSize="15sp"
+                    android:layout_gravity="center_horizontal"
+                    android:gravity="center"
+                    android:layout_marginBottom="10dp" />
+
+                <!-- Confidence row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal">
+
+                    <ProgressBar
+                        android:id="@+id/ConfidenceBar"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="10dp"
+                        android:max="100"
+                        android:progress="0"
+                        android:progressDrawable="@drawable/progress_neutral"
+                        android:layout_marginStart="6dp"
+                        android:layout_marginEnd="6dp"
+                        android:layout_marginTop="2dp"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:id="@+id/ConfidenceText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Confidence:"
+                        android:textColor="#2E7D32"
+                        android:textSize="13sp"
+                        android:layout_gravity="center_horizontal"
+                        android:gravity="center"
+                        android:layout_marginBottom="2dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Description card (alternates will be appended inside this TextView) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/rounded_list_bg"
+                android:padding="12dp"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
+                android:layout_marginBottom="10dp">
+
+                <TextView
+                    android:id="@+id/PlantDescriptionText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#2E7D32"
+                    android:textSize="15sp"
+                    android:lineSpacingExtra="4dp" />
+            </LinearLayout>
+
+            <!-- Primary action -->
             <Button
                 android:id="@+id/TakeAnotherPictureButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Take Another Picture"
-                android:backgroundTint="#66BB6A"
+                android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="32dp"
-                android:elevation="4dp" />
+                android:letterSpacing="0.02"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:backgroundTint="#2E7D32"
+                android:elevation="3dp"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="20dp" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

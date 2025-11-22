@@ -295,9 +295,9 @@ public class SettingsActivity extends AppCompatActivity {
                         ViewGroup.LayoutParams.WRAP_CONTENT));
                 btn.setAllCaps(false);
                 btn.setPadding(20, 10, 20, 10);
-                btn.setBackgroundTintList(
-                        getResources().getColorStateList(android.R.color.holo_green_light, null));
-                btn.setTextColor(0xFF1B5E20);
+                btn.setBackgroundResource(R.drawable.history_item_bg);
+                btn.setTextColor(getResources().getColor(R.color.history_item_text, null));
+
             }
 
             PlantCapture item = getItem(position);
