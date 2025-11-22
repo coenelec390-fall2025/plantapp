@@ -1,12 +1,17 @@
 package com.example.plantapp;
 
+import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
+import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.PorterDuff;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -61,11 +66,23 @@ public class DescriptionActivity extends AppCompatActivity {
     private ImageButton backBtn;
     private Button takeAnotherBtn;
     private ImageView plantImageView;
-
     private String descriptionText = "";
     private String scientificName  = "";
     private String commonName      = "";
     private int confidenceScore    = 0;
+
+    // Overlay views for the identifying screen
+    private View identificationOverlay;
+    private ImageView overlayLogo;
+    private ImageView overlayStatusIcon;
+    private TextView overlayStatusText;
+    private ObjectAnimator logoPulseAnimator;
+
+    private enum IdentificationResult {
+        IDENTIFIED_OK,
+        WARNING,
+        UNKNOWN
+    }
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Runnable loadingRunnable = null;
@@ -197,6 +214,12 @@ public class DescriptionActivity extends AppCompatActivity {
         plantTitle        = findViewById(R.id.PlantTitle);
         plantImageView    = findViewById(R.id.PlantImageView);
 
+        // New overlay views
+        identificationOverlay = findViewById(R.id.identificationOverlay);
+        overlayLogo           = findViewById(R.id.overlayLogo);
+        overlayStatusIcon     = findViewById(R.id.overlayStatusIcon);
+        overlayStatusText     = findViewById(R.id.overlayStatusText);
+
         plantTitle.setText("Plant Description\n" + userRole);
 
         disableButton(backBtn);
@@ -217,6 +240,10 @@ public class DescriptionActivity extends AppCompatActivity {
         confidenceBar.setVisibility(View.GONE);
         confidenceBar.setProgress(0);
 
+        // Show the identifying overlay (pulsing leaf) on top of the existing screen
+        showIdentificationOverlay();
+
+        // Keep your existing "Loading..." dots under the overlay
         startLoadingDots(commonNameTv, "Loading");
 
         downloadImageAndRunGemini(imageUrl, userRole);
@@ -235,6 +262,7 @@ public class DescriptionActivity extends AppCompatActivity {
                 enableButton(takeAnotherBtn);
                 while (pending.getAndDecrement() > 0) {}
                 maybeDeliverAll();
+                onIdentificationFinished(IdentificationResult.UNKNOWN);
                 return;
             }
 
@@ -326,6 +354,7 @@ public class DescriptionActivity extends AppCompatActivity {
             enableButton(takeAnotherBtn);
             while (pending.getAndDecrement() > 0) {}
             maybeDeliverAll();
+            onIdentificationFinished(IdentificationResult.UNKNOWN);
         });
     }
 
@@ -349,7 +378,7 @@ public class DescriptionActivity extends AppCompatActivity {
                         "texture, preparation methods, and ideal pairings.";
             case "gardener":
                 return baseRule + "From the provided image of a plant, write a horticultural overview for a gardener " +
-                        "(one line per point). Cover light requirements, soil, watering, propagation, and common pests/diseases.";
+                        "(one line per point). Cover light requirements, soil, watering, and common pests/diseases.";
             default:
                 return baseRule + "From the provided image, write an encyclopedia-style summary of the plant " +
                         "(one line per point), describing appearance, natural habitat, and uses.";
@@ -392,6 +421,18 @@ public class DescriptionActivity extends AppCompatActivity {
                 confidenceTv.setText("Confidence: " + confidenceScore + "%");
                 applyConfidenceColor(confidenceScore);
 
+                // Choose overlay result based on confidence
+                IdentificationResult result;
+                if (confidenceScore >= 80) {
+                    result = IdentificationResult.IDENTIFIED_OK;   // green check
+                } else if (confidenceScore <= 40) {
+                    result = IdentificationResult.WARNING;         // red warning
+                } else {
+                    result = IdentificationResult.UNKNOWN;         // grey question mark
+                }
+
+                onIdentificationFinished(result);
+
                 enableButton(backBtn);
                 enableButton(takeAnotherBtn);
             });
@@ -429,6 +470,129 @@ public class DescriptionActivity extends AppCompatActivity {
                 .add(data)
                 .addOnFailureListener(e ->
                         Toast.makeText(this, "Failed to save history: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+    }
+
+    // ---------- overlay helpers ----------
+    private void showIdentificationOverlay() {
+        if (identificationOverlay == null) return;
+
+        identificationOverlay.setVisibility(View.VISIBLE);
+        identificationOverlay.setAlpha(1f);
+
+        if (overlayLogo != null) {
+            overlayLogo.setVisibility(View.VISIBLE);
+            overlayLogo.setAlpha(1f);
+            overlayLogo.setScaleX(1f);
+            overlayLogo.setScaleY(1f);
+        }
+
+        if (overlayStatusIcon != null) {
+            overlayStatusIcon.setVisibility(View.INVISIBLE);
+            overlayStatusIcon.setAlpha(0f);
+        }
+
+        if (overlayStatusText != null) {
+            overlayStatusText.setText("Identifying plant...");
+        }
+
+        startLogoPulse();
+    }
+
+    private void startLogoPulse() {
+        if (overlayLogo == null) return;
+
+        if (logoPulseAnimator != null) {
+            logoPulseAnimator.cancel();
+        }
+
+        PropertyValuesHolder scaleX = PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.15f);
+        PropertyValuesHolder scaleY = PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.15f);
+
+        logoPulseAnimator = ObjectAnimator.ofPropertyValuesHolder(overlayLogo, scaleX, scaleY);
+        logoPulseAnimator.setDuration(700);
+        logoPulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        logoPulseAnimator.setRepeatMode(ValueAnimator.REVERSE);
+        logoPulseAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        logoPulseAnimator.start();
+    }
+
+    private void stopLogoPulse() {
+        if (logoPulseAnimator != null) {
+            logoPulseAnimator.cancel();
+            logoPulseAnimator = null;
+        }
+    }
+
+    private void onIdentificationFinished(IdentificationResult result) {
+        if (identificationOverlay == null) return;
+
+        stopLogoPulse();
+
+        int iconRes;
+        int tintColor;
+        String statusText;
+
+        switch (result) {
+            case IDENTIFIED_OK:
+                iconRes = android.R.drawable.checkbox_on_background;
+                tintColor = 0xFF4CAF50; // green
+                statusText = "Plant identified!";
+                break;
+            case WARNING:
+                iconRes = android.R.drawable.ic_dialog_alert;
+                tintColor = 0xFFF44336; // red
+                statusText = "Low confidence";
+                break;
+            case UNKNOWN:
+            default:
+                iconRes = android.R.drawable.ic_menu_help;
+                tintColor = 0xFF9E9E9E; // grey
+                statusText = "Not sure";
+                break;
+        }
+
+        if (overlayStatusIcon != null) {
+            overlayStatusIcon.setImageResource(iconRes);
+            overlayStatusIcon.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN);
+            overlayStatusIcon.setVisibility(View.VISIBLE);
+            overlayStatusIcon.setAlpha(0f);
+        }
+
+        if (overlayStatusText != null) {
+            overlayStatusText.setText(statusText);
+        }
+
+        if (overlayLogo != null) {
+            overlayLogo.animate()
+                    .alpha(0f)
+                    .setDuration(300)
+                    .withEndAction(() -> overlayLogo.setVisibility(View.INVISIBLE))
+                    .start();
+        }
+
+        if (overlayStatusIcon != null) {
+            overlayStatusIcon.animate()
+                    .alpha(1f)
+                    .setDuration(300)
+                    .withEndAction(() -> overlayStatusIcon.postDelayed(this::fadeOutOverlay, 600))
+                    .start();
+        } else {
+            // If for some reason we don't have an icon, just fade out the overlay
+            fadeOutOverlay();
+        }
+    }
+
+    private void fadeOutOverlay() {
+        if (identificationOverlay == null) return;
+
+        identificationOverlay.animate()
+                .alpha(0f)
+                .setDuration(400)
+                .withEndAction(() -> {
+                    identificationOverlay.setVisibility(View.GONE);
+                    identificationOverlay.setAlpha(1f);
+                })
+                .start();
     }
 
     // ---------- helpers ----------
@@ -557,5 +721,11 @@ public class DescriptionActivity extends AppCompatActivity {
     }
 
     @Override protected void onPause() { super.onPause(); stopLoadingDots(); }
-    @Override protected void onDestroy() { stopLoadingDots(); super.onDestroy(); }
+
+    @Override
+    protected void onDestroy() {
+        stopLoadingDots();
+        stopLogoPulse();
+        super.onDestroy();
+    }
 }
