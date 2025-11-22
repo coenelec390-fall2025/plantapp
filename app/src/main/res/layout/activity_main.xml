@@ -6,24 +6,24 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
+    android:background="@drawable/profile_bg_gradient"
     android:padding="0dp"
     tools:context=".MainActivity">
 
     <!-- Top-right profile button -->
     <ImageButton
         android:id="@+id/ProfileButton"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
         android:background="@android:color/transparent"
         android:contentDescription="Profile"
-        android:src="@drawable/ic_profile_icon"
         android:padding="4dp"
-        app:layout_constraintTop_toTopOf="parent"
+        android:src="@drawable/ic_profile_icon"
         app:layout_constraintEnd_toEndOf="parent"
-        app:tint="#2E7D32"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="#E8F5E9" />
 
     <!-- App title -->
     <TextView
@@ -31,7 +31,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="SureLeaf"
-        android:textColor="#1B5E20"
+        android:textColor="#6EF7A7"
         android:textSize="32sp"
         android:textStyle="bold"
         android:letterSpacing="0.02"
@@ -46,7 +46,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Select your role"
-        android:textColor="#2E7D32"
+        android:textColor="#A5D6A7"
         android:textSize="16sp"
         app:layout_constraintTop_toBottomOf="@id/SureLeafTitle"
         app:layout_constraintStart_toStartOf="parent"
@@ -58,7 +58,7 @@
         android:id="@+id/RoleCard"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@drawable/rounded_list_bg"
+        android:background="@drawable/profile_card_bg"
         android:orientation="vertical"
         android:padding="12dp"
         app:layout_constraintTop_toBottomOf="@id/RoleSelectTitle"
@@ -74,7 +74,8 @@
             android:layout_height="wrap_content"
             android:spinnerMode="dropdown"
             android:paddingStart="8dp"
-            android:paddingEnd="8dp" />
+            android:paddingEnd="8dp"
+            android:popupBackground="@drawable/role_spinner_popup_bg" />
     </LinearLayout>
 
     <!-- Instruction text -->
@@ -83,7 +84,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Point your camera at a plant to begin"
-        android:textColor="#388E3C"
+        android:textColor="#B0BEC5"
         android:textSize="16sp"
         app:layout_constraintTop_toBottomOf="@id/RoleCard"
         app:layout_constraintStart_toStartOf="parent"
@@ -94,18 +95,19 @@
     <!-- Big round camera button -->
     <ImageButton
         android:id="@+id/CameraButton"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
+        android:layout_width="137dp"
+        android:layout_height="131dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="32dp"
         android:background="@drawable/camera_button_bg"
         android:contentDescription="Open Camera"
-        android:src="@android:drawable/ic_menu_camera"
         android:scaleType="centerInside"
-        app:tint="#FFFFFF"
-        app:layout_constraintTop_toBottomOf="@id/CameraDescription"
+        android:src="@android:drawable/ic_menu_camera"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="32dp" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/CameraDescription"
+        app:layout_constraintVertical_bias="0.73"
+        app:tint="#FFFFFF" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
