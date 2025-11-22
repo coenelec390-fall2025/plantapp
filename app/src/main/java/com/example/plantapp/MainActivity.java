@@ -18,7 +18,6 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.SetOptions;
 
@@ -64,10 +63,15 @@ public class MainActivity extends AppCompatActivity {
         cameraButton  = findViewById(R.id.CameraButton);
         roleSpinner   = findViewById(R.id.RoleSpinner);
 
-        // spinner to select role
+        // SPINNER ADAPTER Role
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_dropdown_item, roles);
+                this,
+                R.layout.spinner_role_item,      // layout for the closed spinner
+                roles
+        );
+        adapter.setDropDownViewResource(R.layout.spinner_role_dropdown_item);
         roleSpinner.setAdapter(adapter);
+        // ----------------------------------------------------
 
         // listener for spinner options
         roleSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -85,9 +89,9 @@ public class MainActivity extends AppCompatActivity {
 
         // go to profile/settings activity
         profileButton.setOnClickListener(v -> {
-                    startActivity(new Intent(MainActivity.this, SettingsActivity.class));
-                    //finish();
-                });
+            startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+            //finish();
+        });
 
         // go to camera activity
         cameraButton.setOnClickListener(v -> {
@@ -142,8 +146,6 @@ public class MainActivity extends AppCompatActivity {
 
         db.collection("users").document(user.getUid())
                 .set(updates, SetOptions.merge())
-                //.addOnSuccessListener(aVoid ->
-                //        Toast.makeText(this, "Role set to " + role, Toast.LENGTH_SHORT).show())
                 .addOnFailureListener(e ->
                         Toast.makeText(this, "Failed to update role: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
