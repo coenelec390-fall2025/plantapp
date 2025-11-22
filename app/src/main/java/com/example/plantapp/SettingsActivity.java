@@ -420,9 +420,9 @@ public class SettingsActivity extends AppCompatActivity {
                     friendAdapter.notifyDataSetChanged();
 
                     // Debug toast so you see that it actually loaded something
-                    Toast.makeText(this,
-                            "Loaded " + friendItems.size() + " friends",
-                            Toast.LENGTH_SHORT).show();
+                    //Toast.makeText(this,
+                            //"Loaded " + friendItems.size() + " friends",
+                            //Toast.LENGTH_SHORT).show();
                 })
                 .addOnFailureListener(e ->
                         Toast.makeText(this,

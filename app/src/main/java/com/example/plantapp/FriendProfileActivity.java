@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.ProgressBar;
@@ -18,6 +19,10 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
@@ -37,6 +42,7 @@ public class FriendProfileActivity extends AppCompatActivity {
     private TextView friendHistoryTitleTv;
     private ListView friendHistoryListView;
     private ImageButton backBtn;
+    private Button removeFriendBtn;
 
     private final List<PlantCapture> friendHistoryItems = new ArrayList<>();
     private FriendHistoryAdapter friendHistoryAdapter;
@@ -69,19 +75,23 @@ public class FriendProfileActivity extends AppCompatActivity {
         });
 
         // Link views
-        backBtn            = findViewById(R.id.FriendBackButton);
-        friendUsernameTv   = findViewById(R.id.FriendUsernameDisplay);
-        friendCounterTv    = findViewById(R.id.FriendPlantCounterText);
-        friendRankTv       = findViewById(R.id.FriendPlantRankingText);
-        friendRankBar      = findViewById(R.id.FriendRankProgressBar);
+        backBtn              = findViewById(R.id.FriendBackButton);
+        friendUsernameTv     = findViewById(R.id.FriendUsernameDisplay);
+        friendCounterTv      = findViewById(R.id.FriendPlantCounterText);
+        friendRankTv         = findViewById(R.id.FriendPlantRankingText);
+        friendRankBar        = findViewById(R.id.FriendRankProgressBar);
         friendHistoryTitleTv = findViewById(R.id.FriendHistoryTitle);
         friendHistoryListView = findViewById(R.id.FriendHistoryListView);
+        removeFriendBtn      = findViewById(R.id.RemoveFriendButton);
 
         if (friendUsername != null && !friendUsername.isEmpty()) {
             friendUsernameTv.setText(friendUsername);
         }
 
         backBtn.setOnClickListener(v -> finish());
+
+        // Remove friend button
+        removeFriendBtn.setOnClickListener(v -> removeFriend());
 
         // List + adapter for friend history
         friendHistoryAdapter = new FriendHistoryAdapter(friendHistoryItems);
@@ -171,6 +181,46 @@ public class FriendProfileActivity extends AppCompatActivity {
 
         friendRankTv.setText(rank);
         friendRankBar.setProgress(progress);
+    }
+
+    /** Remove this friend from both users' friends lists. */
+    private void removeFriend() {
+        FirebaseUser current = FirebaseAuth.getInstance().getCurrentUser();
+        if (current == null) {
+            Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String currentUid = current.getUid();
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        removeFriendBtn.setEnabled(false);
+
+        // assume friends are stored as:
+        // users/{uid}/friends/{friendUid}
+        Task<Void> t1 = db.collection("users")
+                .document(currentUid)
+                .collection("friends")
+                .document(friendUid)
+                .delete();
+
+        Task<Void> t2 = db.collection("users")
+                .document(friendUid)
+                .collection("friends")
+                .document(currentUid)
+                .delete();
+
+        Tasks.whenAll(t1, t2)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Friend removed", Toast.LENGTH_SHORT).show();
+                    finish(); // go back to settings, where list will refresh
+                })
+                .addOnFailureListener(e -> {
+                    removeFriendBtn.setEnabled(true);
+                    Toast.makeText(this,
+                            "Failed to remove friend: " + e.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                });
     }
 
     /** Model for a capture (same as in SettingsActivity). */
