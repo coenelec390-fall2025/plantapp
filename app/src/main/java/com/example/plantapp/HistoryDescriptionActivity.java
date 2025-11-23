@@ -40,6 +40,7 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
     private int confidence;
     private String dateTime;
     private String docId;       // Firestore document ID for this history item
+    private boolean allowDelete; // NEW
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,14 +50,15 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
 
         // ---- Get extras ----
         Intent i = getIntent();
-        docId = i.getStringExtra("docId");
-        userRole = i.getStringExtra("userRole");
-        imageUrl = i.getStringExtra("imageUrl");
-        commonName = i.getStringExtra("commonName");
+        docId        = i.getStringExtra("docId");
+        userRole     = i.getStringExtra("userRole");
+        imageUrl     = i.getStringExtra("imageUrl");
+        commonName   = i.getStringExtra("commonName");
         scientificName = i.getStringExtra("scientificName");
-        description = i.getStringExtra("description");
-        confidence = i.getIntExtra("confidence", 0);
-        dateTime = i.getStringExtra("dateTime");
+        description  = i.getStringExtra("description");
+        confidence   = i.getIntExtra("confidence", 0);
+        dateTime     = i.getStringExtra("dateTime");
+        allowDelete  = i.getBooleanExtra("allowDelete", true); // default true for your own history
 
         if (imageUrl == null || imageUrl.trim().isEmpty()) {
             Toast.makeText(this, "Missing image URL", Toast.LENGTH_LONG).show();
@@ -93,10 +95,16 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         // ---- Back button ----
         backBtn.setOnClickListener(v -> finish());
 
-        // ---- Configure delete button ----
-        deleteBtn.setVisibility(View.VISIBLE);
-        deleteBtn.setText("Delete from History");
-        deleteBtn.setOnClickListener(v -> deleteCurrentHistoryEntry());
+        // ---- Configure delete button (hide for friend history) ----
+        if (!allowDelete) {
+            // viewing a friend's capture -> no delete
+            deleteBtn.setVisibility(View.GONE);
+        } else {
+            // your own capture -> can delete
+            deleteBtn.setVisibility(View.VISIBLE);
+            deleteBtn.setText("Delete from History");
+            deleteBtn.setOnClickListener(v -> deleteCurrentHistoryEntry());
+        }
 
         // ---- Set UI text ----
         commonNameTv.setText(commonName != null ? commonName : "Unknown Plant");
