@@ -13,6 +13,8 @@ import android.net.NetworkRequest;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.webkit.WebSettings;
@@ -51,6 +53,9 @@ public class CameraActivity extends AppCompatActivity {
     private static final String ESP_BASE = "http://192.168.4.1";
     private static final int REQ_WIFI = 1001;
 
+    // How long we wait for camera connection before timing out (ms)
+    private static final long CONNECT_TIMEOUT_MS = 30_000L;
+
     private String userRole;
     private WebView webView;
     private ImageButton shutterButton;
@@ -61,11 +66,16 @@ public class CameraActivity extends AppCompatActivity {
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
 
-    // --- NEW: Connecting overlay views + animation ---
+    // --- Connecting overlay views + animation ---
     private View connectingOverlay;
     private ImageView overlayLogo;
     private TextView overlayStatusText;
     private ObjectAnimator logoPulseAnimator;
+
+    // --- Timeout handling for camera connection ---
+    private final Handler timeoutHandler = new Handler(Looper.getMainLooper());
+    private Runnable connectTimeoutRunnable;
+    private boolean connectionDone = false; // guards against double-callback/timeout
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,7 +96,7 @@ public class CameraActivity extends AppCompatActivity {
         shutterButton = findViewById(R.id.ShutterButton);
         ImageButton backButton = findViewById(R.id.BackButton);
 
-        // NEW: find overlay views
+        // find overlay views
         connectingOverlay = findViewById(R.id.cameraConnectingOverlay);
         overlayLogo       = findViewById(R.id.cameraOverlayLogo);
         overlayStatusText = findViewById(R.id.cameraOverlayStatusText);
@@ -153,7 +163,7 @@ public class CameraActivity extends AppCompatActivity {
         );
     }
 
-    // ---- NEW: overlay helpers ----
+    // ---- overlay helpers ----
     private void showConnectingOverlay() {
         if (connectingOverlay == null) return;
 
@@ -214,6 +224,13 @@ public class CameraActivity extends AppCompatActivity {
                 .start();
     }
 
+    private void cancelConnectTimeout() {
+        if (connectTimeoutRunnable != null) {
+            timeoutHandler.removeCallbacks(connectTimeoutRunnable);
+            connectTimeoutRunnable = null;
+        }
+    }
+
     // ---- Connect to ESP AP (Android 10+) ----
     @RequiresApi(29)
     private void connectToEspAp() {
@@ -240,9 +257,16 @@ public class CameraActivity extends AppCompatActivity {
         shutterButton.setEnabled(false);
         showConnectingOverlay();
 
+        connectionDone = false; // new connection attempt
+
         networkCallback = new ConnectivityManager.NetworkCallback() {
             @Override
             public void onAvailable(Network network) {
+                // If timeout already fired or we've already handled result, ignore.
+                if (connectionDone) return;
+                connectionDone = true;
+                cancelConnectTimeout();
+
                 espNetwork = network;
                 connectivityManager.bindProcessToNetwork(network);
 
@@ -266,29 +290,56 @@ public class CameraActivity extends AppCompatActivity {
 
             @Override
             public void onUnavailable() {
+                if (connectionDone) return;
+                connectionDone = true;
+                cancelConnectTimeout();
+
                 runOnUiThread(() -> {
                     Toast.makeText(CameraActivity.this,
                             "ESP network unavailable", Toast.LENGTH_SHORT).show();
-                    // Hide overlay even if failed
                     fadeOutConnectingOverlay();
-                    // Keep shutter disabled (no connection) to avoid broken capture
                     shutterButton.setEnabled(false);
                 });
             }
         };
 
         connectivityManager.requestNetwork(request, networkCallback);
+
+        // --- TIMEOUT: if no onAvailable within CONNECT_TIMEOUT_MS, go back to main ---
+        connectTimeoutRunnable = () -> {
+            if (connectionDone) return; // already handled
+            connectionDone = true;
+
+            try {
+                if (connectivityManager != null && networkCallback != null) {
+                    connectivityManager.unregisterNetworkCallback(networkCallback);
+                }
+            } catch (Exception ignored) {}
+
+            fadeOutConnectingOverlay();
+            Toast.makeText(CameraActivity.this,
+                    "Camera connection timed out. Returning to home.",
+                    Toast.LENGTH_LONG).show();
+
+            // Return to main page
+            Intent i = new Intent(CameraActivity.this, MainActivity.class);
+            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+            finish();
+        };
+
+        timeoutHandler.postDelayed(connectTimeoutRunnable, CONNECT_TIMEOUT_MS);
     }
 
     private void releaseEspNetwork() {
-        if (connectivityManager != null) {
-            connectivityManager.bindProcessToNetwork(null);
-            if (networkCallback != null) {
-                try {
+        try {
+            if (connectivityManager != null) {
+                connectivityManager.bindProcessToNetwork(null);
+                if (networkCallback != null) {
                     connectivityManager.unregisterNetworkCallback(networkCallback);
-                } catch (Exception ignored) {
                 }
             }
+        } catch (Exception ignored) {
         }
         espNetwork = null;
     }
@@ -394,10 +445,11 @@ public class CameraActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        cancelConnectTimeout();
         releaseEspNetwork();
         io.shutdown();
         if (webView != null) webView.destroy();
-        stopLogoPulse(); // NEW: clean up animation
+        stopLogoPulse();
     }
 
     // ---- Permission result ----

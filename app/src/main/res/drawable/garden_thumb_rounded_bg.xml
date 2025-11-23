@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- Transparent fill, we only care about the outline for clipping -->
+    <solid android:color="@android:color/transparent" />
+
+    <!-- Match this radius to whatever you used in history_item_bg -->
+    <corners android:radius="16dp" />
+</shape>

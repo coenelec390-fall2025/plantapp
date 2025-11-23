@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,6 +17,7 @@ import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.FrameLayout;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AlertDialog;
@@ -187,6 +189,7 @@ public class MainActivity extends AppCompatActivity {
     // ---------- MY GARDEN ----------
 
     /** Load up to 20 recent HIGH-CONFIDENCE plant images into the horizontal "My Garden" strip. */
+    /** Load up to 20 recent HIGH-CONFIDENCE plant images into the horizontal "My Garden" strip. */
     private void loadGardenThumbnails() {
         FirebaseUser user = mAuth.getCurrentUser();
         if (user == null) {
@@ -201,7 +204,7 @@ public class MainActivity extends AppCompatActivity {
                 .document(uid)
                 .collection("captures")
                 .orderBy("timestamp", Query.Direction.DESCENDING)
-                .limit(50) // fetch a bit more so we have a better chance of finding 20 with ≥ 80% confidence
+                .limit(50) // fetch a bit more so we have a better chance of finding 20 with ≥ 50% confidence
                 .get()
                 .addOnSuccessListener(querySnapshot -> {
                     gardenStripLayout.removeAllViews();
@@ -219,18 +222,34 @@ public class MainActivity extends AppCompatActivity {
                         Long confLong = doc.getLong("confidence");
                         int confidence = (confLong != null) ? confLong.intValue() : 0;
 
-                        // ⭐ Only show plants with confidence >= 80
-                        if (confidence < 80) continue;
+                        // ⭐ Only show plants with confidence >= 50
+                        if (confidence < 50) continue;
 
-                        String imageUrl = doc.getString("url");
+                        String docId          = doc.getId();
+                        String imageUrl       = doc.getString("url");
+                        String role           = doc.getString("role");
+                        String commonName     = doc.getString("commonName");
+                        String scientificName = doc.getString("scientificName");
+                        String description    = doc.getString("description");
+                        String dateTime       = doc.getString("dateTime");
+
                         if (imageUrl == null || imageUrl.trim().isEmpty()) continue;
 
-                        addGardenThumbnail(imageUrl);
+                        addGardenThumbnail(
+                                docId,
+                                imageUrl,
+                                role,
+                                commonName,
+                                scientificName,
+                                description,
+                                confidence,
+                                dateTime
+                        );
                         added++;
                     }
 
                     if (added == 0) {
-                        // there were captures, but none with confidence >= 80
+                        // there were captures, but none with confidence >= 50
                         gardenEmptyText.setVisibility(View.VISIBLE);
                     } else {
                         gardenEmptyText.setVisibility(View.GONE);
@@ -243,22 +262,70 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+
     /** Add a single thumbnail ImageView for the given storage URL. */
-    private void addGardenThumbnail(String imageUrl) {
-        final ImageView iv = new ImageView(this);
+    /** Add a single thumbnail ImageView for the given storage URL. */
+    /** Add a single thumbnail ImageView for the given storage URL. */
+    private void addGardenThumbnail(String docId,
+                                    String imageUrl,
+                                    String role,
+                                    String commonName,
+                                    String scientificName,
+                                    String description,
+                                    int confidence,
+                                    String dateTime) {
+        // Outer frame that shows the green outline
+        FrameLayout frame = new FrameLayout(this);
 
-        // 1.5x larger than 72dp  → 108dp
-        int size = dpToPx(225);
-        LinearLayout.LayoutParams lp =
+        int size = dpToPx(225); // same size as before
+        LinearLayout.LayoutParams frameLp =
                 new LinearLayout.LayoutParams(size, size);
-        lp.setMargins(0, 0, dpToPx(8), 0); // only right margin between images
-        iv.setLayoutParams(lp);
+        frameLp.setMargins(0, 0, dpToPx(8), 0); // right spacing between thumbnails
+        frame.setLayoutParams(frameLp);
+
+        // Green outline/background on the frame
+        frame.setBackgroundResource(R.drawable.history_item_bg);
+
+        // Padding so the image sits inside the outline
+        int innerPad = dpToPx(4);
+        frame.setPadding(innerPad, innerPad, innerPad, innerPad);
+
+        // Actual image view
+        ImageView iv = new ImageView(this);
+        FrameLayout.LayoutParams ivLp =
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                );
+        iv.setLayoutParams(ivLp);
         iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        iv.setBackgroundResource(R.drawable.history_item_bg);
-        iv.setPadding(dpToPx(2), dpToPx(2), dpToPx(2), dpToPx(2));
 
-        gardenStripLayout.addView(iv);
+        // Rounded-corner background used as a clipping mask
+        iv.setBackgroundResource(R.drawable.garden_thumb_rounded_bg);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            iv.setClipToOutline(true);
+        }
 
+        // Add the ImageView inside the frame
+        frame.addView(iv);
+        gardenStripLayout.addView(frame);
+
+        // ✅ Click → open HistoryDescriptionActivity for this plant
+        frame.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, HistoryDescriptionActivity.class);
+            intent.putExtra("docId", docId);
+            intent.putExtra("userRole", role != null ? role : "Hiker");
+            intent.putExtra("imageUrl", imageUrl);
+            intent.putExtra("commonName", commonName);
+            intent.putExtra("scientificName", scientificName);
+            intent.putExtra("description", description);
+            intent.putExtra("confidence", confidence);
+            intent.putExtra("dateTime", dateTime);
+            intent.putExtra("allowDelete", true);  // from your own garden, so allow delete
+            startActivity(intent);
+        });
+
+        // Load image from Firebase Storage into the ImageView
         try {
             StorageReference ref = FirebaseStorage.getInstance().getReferenceFromUrl(imageUrl);
             final long MAX = 1024L * 1024L; // 1 MB per thumbnail
@@ -271,12 +338,15 @@ public class MainActivity extends AppCompatActivity {
                         }
                     })
                     .addOnFailureListener(e -> {
-                        // silently fail for this thumbnail
+                        // silently ignore failure for this one
                     });
         } catch (Exception e) {
-            // invalid url, ignore this one
+            // invalid URL - ignore this thumbnail
         }
     }
+
+
+
 
     private int dpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
