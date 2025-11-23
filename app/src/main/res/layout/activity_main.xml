@@ -142,7 +142,7 @@
                 android:id="@+id/GardenEmptyText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Your garden is empty, take your first picture to begin"
+                android:text="Plants identified with over 80% confidence are added to your garden!"
                 android:textColor="#B0BEC5"
                 android:textSize="14sp"
                 android:gravity="center"

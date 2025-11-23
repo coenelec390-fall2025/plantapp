@@ -141,6 +141,19 @@
             android:textSize="18sp"
             android:layout_marginBottom="6dp" />
 
+        <!-- EMPTY VIEW for history -->
+        <TextView
+            android:id="@+id/historyEmptyText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Your plant history is empty. Capture your first plant to get started!"
+            android:textColor="#B0BEC5"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:visibility="gone" />
+
         <ListView
             android:id="@+id/listView"
             android:layout_width="match_parent"
@@ -163,6 +176,19 @@
             android:textSize="18sp"
             android:layout_marginTop="12dp"
             android:layout_marginBottom="6dp" />
+
+        <!-- EMPTY VIEW for friends -->
+        <TextView
+            android:id="@+id/friendsEmptyText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Add a friend with the 'plus' icon in the top right corner!"
+            android:textColor="#B0BEC5"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:visibility="gone" />
 
         <ListView
             android:id="@+id/friendsListView"

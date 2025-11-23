@@ -48,6 +48,10 @@ public class SettingsActivity extends AppCompatActivity {
     private ListView friendsListView;
     private TextView friendRequestBadge;
 
+    // NEW: empty-state views
+    private TextView historyEmptyText;
+    private TextView friendsEmptyText;
+
     // history
     private final List<PlantCapture> historyItems = new ArrayList<>();
     private HistoryAdapter historyAdapter;
@@ -117,6 +121,14 @@ public class SettingsActivity extends AppCompatActivity {
         friendsListView    = findViewById(R.id.friendsListView);
         friendRequestBadge = findViewById(R.id.friendRequestBadge);
 
+        // NEW: empty-state views
+        historyEmptyText   = findViewById(R.id.historyEmptyText);
+        friendsEmptyText   = findViewById(R.id.friendsEmptyText);
+
+        // wire empty views to their lists
+        historyListView.setEmptyView(historyEmptyText);
+        friendsListView.setEmptyView(friendsEmptyText);
+
         Button logoutBtn = findViewById(R.id.LogoutButton);
         logoutBtn.setOnClickListener(v -> {
             FirebaseAuth.getInstance().signOut();
@@ -140,6 +152,7 @@ public class SettingsActivity extends AppCompatActivity {
         // load header info
         loadUsername();
     }
+
 
     @Override
     protected void onResume() {
