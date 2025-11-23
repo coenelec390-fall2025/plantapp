@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -13,10 +14,12 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
@@ -31,7 +34,7 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
     private TextView descriptionTv;
     private TextView confidenceTv;
     private ProgressBar confidenceBar;
-    private Button takeAnotherBtn;
+    private Button deleteFromHistoryBtn;
 
     private String docId;
     private String userRole;
@@ -57,34 +60,36 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         });
 
         // Bind views
-        plantTitleTv      = findViewById(R.id.PlantTitle);
-        backBtn           = findViewById(R.id.BackButton);
-        plantImageView    = findViewById(R.id.PlantImageView);
-        commonNameTv      = findViewById(R.id.PlantNameText);
-        scientificNameTv  = findViewById(R.id.PlantScientificNameText);
-        descriptionTv     = findViewById(R.id.PlantDescriptionText);
-        confidenceTv      = findViewById(R.id.ConfidenceText);
-        confidenceBar     = findViewById(R.id.ConfidenceBar);
-        takeAnotherBtn    = findViewById(R.id.TakeAnotherPictureButton);
+        plantTitleTv        = findViewById(R.id.PlantTitle);
+        backBtn             = findViewById(R.id.BackButton);
+        plantImageView      = findViewById(R.id.PlantImageView);
+        commonNameTv        = findViewById(R.id.PlantNameText);
+        scientificNameTv    = findViewById(R.id.PlantScientificNameText);
+        descriptionTv       = findViewById(R.id.PlantDescriptionText);
+        confidenceTv        = findViewById(R.id.ConfidenceText);
+        confidenceBar       = findViewById(R.id.ConfidenceBar);
+        deleteFromHistoryBtn= findViewById(R.id.DeleteFromHistoryButton);
 
         // Read extras from intent
         Intent intent = getIntent();
-        docId         = intent.getStringExtra("docId");
-        userRole      = intent.getStringExtra("userRole");
-        imageUrl      = intent.getStringExtra("imageUrl");
-        commonName    = intent.getStringExtra("commonName");
-        scientificName= intent.getStringExtra("scientificName");
-        description   = intent.getStringExtra("description");
-        confidence    = intent.getIntExtra("confidence", 0);
-        dateTime      = intent.getStringExtra("dateTime");
-        allowDelete   = intent.getBooleanExtra("allowDelete", false);
+        docId          = intent.getStringExtra("docId");
+        userRole       = intent.getStringExtra("userRole");
+        imageUrl       = intent.getStringExtra("imageUrl");
+        commonName     = intent.getStringExtra("commonName");
+        scientificName = intent.getStringExtra("scientificName");
+        description    = intent.getStringExtra("description");
+        confidence     = intent.getIntExtra("confidence", 0);
+        dateTime       = intent.getStringExtra("dateTime");
+        allowDelete    = intent.getBooleanExtra("allowDelete", false);
 
-        if (userRole == null) userRole = "Hiker";
+        if (userRole == null || userRole.isEmpty()) {
+            userRole = "Hiker";
+        }
 
-        // Title text
+        // Title: "Previous Capture\n<date> · <role>"
         if (plantTitleTv != null) {
             if (dateTime != null && !dateTime.isEmpty()) {
-                plantTitleTv.setText("Previous Capture\n" + userRole + " · " + dateTime);
+                plantTitleTv.setText("Previous Capture\n" + dateTime + " · " + userRole);
             } else {
                 plantTitleTv.setText("Previous Capture\n" + userRole);
             }
@@ -97,12 +102,13 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         scientificNameTv.setText(scientificName != null ? scientificName : "");
         descriptionTv.setText(description != null ? description : "No description available.");
 
-        // Confidence UI
+        // Confidence UI like DescriptionActivity
         confidenceBar.setMax(100);
         confidenceBar.setProgress(confidence);
         confidenceTv.setText("Confidence: " + confidence + "%");
+        applyConfidenceColor(confidence);
 
-        // Load image from Storage (no Gemini, just the stored URL)
+        // Load image from Storage
         if (imageUrl != null && !imageUrl.trim().isEmpty()) {
             try {
                 StorageReference ref = FirebaseStorage.getInstance().getReferenceFromUrl(imageUrl);
@@ -123,19 +129,66 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
             }
         }
 
-        // Back to profile
-        backBtn.setOnClickListener(v -> {
-            finish(); // simply go back to SettingsActivity
-        });
+        // Back to profile (or previous screen)
+        backBtn.setOnClickListener(v -> finish());
 
-        // "Take another picture" → go to camera with same role
-        takeAnotherBtn.setOnClickListener(v -> {
-            Intent cam = new Intent(HistoryDescriptionActivity.this, CameraActivity.class);
-            cam.putExtra("userRole", userRole);
-            startActivity(cam);
-        });
+        // Delete from history (only if allowed & docId present)
+        if (!allowDelete || docId == null || docId.isEmpty()) {
+            deleteFromHistoryBtn.setVisibility(View.GONE);
+        } else {
+            deleteFromHistoryBtn.setVisibility(View.VISIBLE);
+            deleteFromHistoryBtn.setOnClickListener(v -> deleteCaptureFromHistory());
+        }
+    }
 
-        // Optional: if you want delete support later, you can gate it on allowDelete + add a button.
-        // (You already pass allowDelete = true from SettingsActivity for the owner.)
+    /**
+     * Match the confidence color behavior from DescriptionActivity.
+     * >80  → green
+     * 50-80 → yellow
+     * <50  → red
+     */
+    private void applyConfidenceColor(int score) {
+        int resId;
+        if (score > 80) {
+            resId = R.drawable.progress_green;
+        } else if (score >= 50) {
+            resId = R.drawable.progress_yellow;
+        } else {
+            resId = R.drawable.progress_red;
+        }
+
+        // swap the progress drawable
+        confidenceBar.setProgressDrawable(ContextCompat.getDrawable(this, resId));
+        // force invalidate
+        confidenceBar.setProgress(confidenceBar.getProgress());
+    }
+
+    /**
+     * Deletes this capture document from Firestore, then closes the screen.
+     */
+    private void deleteCaptureFromHistory() {
+        if (docId == null || docId.isEmpty()) {
+            Toast.makeText(this, "Missing capture ID", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (FirebaseAuth.getInstance().getCurrentUser() == null) {
+            Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
+        FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(uid)
+                .collection("captures")
+                .document(docId)
+                .delete()
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Deleted from history", Toast.LENGTH_SHORT).show();
+                    finish();
+                })
+                .addOnFailureListener(e ->
+                        Toast.makeText(this, "Failed to delete: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 }

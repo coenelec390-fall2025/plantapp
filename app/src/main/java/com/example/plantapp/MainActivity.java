@@ -184,6 +184,9 @@ public class MainActivity extends AppCompatActivity {
     // ---------- MY GARDEN ----------
 
     /** Load up to 20 recent plant images into the horizontal "My Garden" strip. */
+    // ---------- MY GARDEN ----------
+
+    /** Load up to 20 recent HIGH-CONFIDENCE plant images into the horizontal "My Garden" strip. */
     private void loadGardenThumbnails() {
         FirebaseUser user = mAuth.getCurrentUser();
         if (user == null) {
@@ -198,23 +201,39 @@ public class MainActivity extends AppCompatActivity {
                 .document(uid)
                 .collection("captures")
                 .orderBy("timestamp", Query.Direction.DESCENDING)
-                .limit(20)
+                .limit(50) // fetch a bit more so we have a better chance of finding 20 with ≥ 80% confidence
                 .get()
                 .addOnSuccessListener(querySnapshot -> {
                     gardenStripLayout.removeAllViews();
 
                     if (querySnapshot.isEmpty()) {
-                        // No plants yet
                         gardenEmptyText.setVisibility(View.VISIBLE);
                         return;
                     }
 
-                    gardenEmptyText.setVisibility(View.GONE);
+                    int added = 0;
 
                     for (QueryDocumentSnapshot doc : querySnapshot) {
+                        if (added >= 20) break; // only show up to 20 thumbnails
+
+                        Long confLong = doc.getLong("confidence");
+                        int confidence = (confLong != null) ? confLong.intValue() : 0;
+
+                        // ⭐ Only show plants with confidence >= 80
+                        if (confidence < 80) continue;
+
                         String imageUrl = doc.getString("url");
                         if (imageUrl == null || imageUrl.trim().isEmpty()) continue;
+
                         addGardenThumbnail(imageUrl);
+                        added++;
+                    }
+
+                    if (added == 0) {
+                        // there were captures, but none with confidence >= 80
+                        gardenEmptyText.setVisibility(View.VISIBLE);
+                    } else {
+                        gardenEmptyText.setVisibility(View.GONE);
                     }
                 })
                 .addOnFailureListener(e -> {
@@ -222,6 +241,7 @@ public class MainActivity extends AppCompatActivity {
                     gardenEmptyText.setVisibility(View.VISIBLE);
                 });
     }
+
 
     /** Add a single thumbnail ImageView for the given storage URL. */
     private void addGardenThumbnail(String imageUrl) {
