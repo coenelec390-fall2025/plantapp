@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/history_item_bg"
+    android:padding="12dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground">
+
+    <!-- Left: common name · role -->
+    <TextView
+        android:id="@+id/historyTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Poison ivy · Hiker"
+        android:textSize="14sp"
+        android:textColor="@color/history_item_text"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <!-- Right: date yyyy/MM/dd HH:mm -->
+    <TextView
+        android:id="@+id/historyDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="2025/11/22 14:37"
+        android:textSize="12sp"
+        android:textColor="#B0BEC5"
+        android:gravity="end" />
+
+</LinearLayout>

@@ -315,7 +315,7 @@ public class DescriptionActivity extends AppCompatActivity {
                 String raw = (cleaned == null) ? "" : cleaned.trim();
                 String parsed = parseCommonNameJson(raw);
                 if (parsed.isEmpty()) parsed = cleanCommonName(sanitizePlainText(raw));
-                parsed = stripInstructionEcho(parsed);                  // NEW
+                parsed = stripInstructionEcho(parsed);
                 commonName = gateNameOrFallback(parsed, "Unknown plant");
                 maybeDeliverAll();
             });
@@ -397,7 +397,7 @@ public class DescriptionActivity extends AppCompatActivity {
 
                 String formattedDescription = formatPoints(descriptionText);
                 formattedDescription = hardStripMetaLabels(formattedDescription);
-                formattedDescription = stripInstructionEcho(formattedDescription);   // NEW
+                formattedDescription = stripInstructionEcho(formattedDescription);
                 if (formattedDescription.isEmpty()) {
                     formattedDescription = "No description available for this image.";
                 }
@@ -409,9 +409,12 @@ public class DescriptionActivity extends AppCompatActivity {
                     }
                 }
 
+                // store final version (for saving to history)
+                finalDescriptionText = formattedDescription;
+
                 // Last safety net on names
-                commonName = stripInstructionEcho(commonName);          // NEW
-                scientificName = stripInstructionEcho(scientificName);  // NEW
+                commonName = stripInstructionEcho(commonName);
+                scientificName = stripInstructionEcho(scientificName);
                 if (startsWithLeak(commonName)) commonName = "Unknown plant";
                 if (startsWithLeak(scientificName)) scientificName = "";
 
@@ -492,7 +495,13 @@ public class DescriptionActivity extends AppCompatActivity {
         data.put("timestamp", System.currentTimeMillis());
         data.put("commonName", commonName);
         data.put("scientificName", scientificName);
-        data.put("description", descriptionText);
+
+        // NEW: save the final formatted description (with alternates) if available
+        String toSaveDesc = finalDescriptionText != null && !finalDescriptionText.isEmpty()
+                ? finalDescriptionText
+                : descriptionText;
+        data.put("description", toSaveDesc);
+
         data.put("confidence", confidenceScore);
 
         FirebaseFirestore.getInstance()
@@ -714,7 +723,7 @@ public class DescriptionActivity extends AppCompatActivity {
         if (s == null) return "";
         s = stripThoughtPreamble(s);
         s = hardStripMetaLabels(s);
-        s = stripInstructionEcho(s);          // NEW
+        s = stripInstructionEcho(s);
         s = s.replaceAll("[*_`~]", "");
         s = s.replaceAll("^\"+|\"+$", "");
         s = s.replaceAll("\\s+", " ").trim();
@@ -729,7 +738,7 @@ public class DescriptionActivity extends AppCompatActivity {
         if (s == null) return "";
         s = stripThoughtPreamble(s);
         s = hardStripMetaLabels(s);
-        s = stripInstructionEcho(s);          // NEW
+        s = stripInstructionEcho(s);
         s = s.replaceAll("[*_`~]", "");
         s = s.replaceAll("^\"+|\"+$", "");
         s = s.replaceAll("\\s+", " ").trim();

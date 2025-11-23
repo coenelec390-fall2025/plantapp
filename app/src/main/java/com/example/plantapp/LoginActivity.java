@@ -14,6 +14,7 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -37,9 +38,9 @@ public class LoginActivity extends AppCompatActivity {
 
         mAuth = FirebaseAuth.getInstance();
 
-        etEmail         = findViewById(R.id.editTextEmail);
-        etPassword      = findViewById(R.id.editTextPassword);
-        btnLogin        = findViewById(R.id.buttonLogin);
+        etEmail          = findViewById(R.id.editTextEmail);
+        etPassword       = findViewById(R.id.editTextPassword);
+        btnLogin         = findViewById(R.id.buttonLogin);
         btnCreateAccount = findViewById(R.id.buttonCreateAccount);
 
         // set up click listeners for login and create account
@@ -47,31 +48,69 @@ public class LoginActivity extends AppCompatActivity {
         btnCreateAccount.setOnClickListener(v -> {
             Intent intent = new Intent(LoginActivity.this, SignupActivity.class);
             startActivity(intent);
-            //finish();
         });
 
         TextView tvForgotPassword = findViewById(R.id.textViewForgotPassword);
-        tvForgotPassword.setOnClickListener(v -> {
-            String email = etEmail.getText().toString().trim();
+        tvForgotPassword.setOnClickListener(v -> showForgotPasswordDialog());
+    }
+
+    /** Show a dialog with its own email field + reset button. */
+    private void showForgotPasswordDialog() {
+        // Inflate custom layout
+        android.view.LayoutInflater inflater = android.view.LayoutInflater.from(this);
+        android.view.View dialogView = inflater.inflate(R.layout.dialog_forgot_password, null, false);
+
+        EditText emailInput = dialogView.findViewById(R.id.editTextDialogEmail);
+        Button resetBtn     = dialogView.findViewById(R.id.buttonDialogReset);
+
+        // Prefill with whatever is already typed in the main email field
+        String currentEmail = etEmail.getText().toString().trim();
+        if (!TextUtils.isEmpty(currentEmail)) {
+            emailInput.setText(currentEmail);
+        }
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setCancelable(true)
+                .create();
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        resetBtn.setOnClickListener(v -> {
+            String email = emailInput.getText().toString().trim();
             if (TextUtils.isEmpty(email)) {
-                etEmail.setError("Enter your email to reset password");
-                etEmail.requestFocus();
+                emailInput.setError("Enter your email");
+                emailInput.requestFocus();
+                return;
+            }
+            if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                emailInput.setError("Enter a valid email");
+                emailInput.requestFocus();
                 return;
             }
 
+            // Send reset email
             mAuth.sendPasswordResetEmail(email)
                     .addOnCompleteListener(task -> {
                         if (task.isSuccessful()) {
                             Toast.makeText(LoginActivity.this,
-                                    "Password reset email sent!", Toast.LENGTH_SHORT).show();
+                                    "Password reset email sent!",
+                                    Toast.LENGTH_SHORT).show();
+                            dialog.dismiss();
                         } else {
+                            String msg = (task.getException() != null)
+                                    ? task.getException().getMessage()
+                                    : "Failed to send reset email.";
                             Toast.makeText(LoginActivity.this,
-                                    "Error: " + task.getException().getMessage(),
+                                    msg,
                                     Toast.LENGTH_LONG).show();
                         }
                     });
         });
 
+        dialog.show();
     }
 
     // try to login with email and password if they exist
@@ -107,8 +146,6 @@ public class LoginActivity extends AppCompatActivity {
                         if (task.isSuccessful()) {
                             Log.d(TAG, "signInWithEmail:success");
                             FirebaseUser user = mAuth.getCurrentUser();
-
-                            // Toast.makeText(LoginActivity.this, "Welcome back!", Toast.LENGTH_SHORT).show();
 
                             startActivity(new Intent(LoginActivity.this, MainActivity.class));
                             finish();
