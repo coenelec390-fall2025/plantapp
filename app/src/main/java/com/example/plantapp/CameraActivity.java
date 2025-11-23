@@ -1,6 +1,9 @@
 package com.example.plantapp;
 
 import android.Manifest;
+import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
+import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
@@ -11,10 +14,13 @@ import android.net.wifi.WifiNetworkSpecifier;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -55,6 +61,12 @@ public class CameraActivity extends AppCompatActivity {
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
 
+    // --- NEW: Connecting overlay views + animation ---
+    private View connectingOverlay;
+    private ImageView overlayLogo;
+    private TextView overlayStatusText;
+    private ObjectAnimator logoPulseAnimator;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -73,6 +85,11 @@ public class CameraActivity extends AppCompatActivity {
         webView = findViewById(R.id.webView);
         shutterButton = findViewById(R.id.ShutterButton);
         ImageButton backButton = findViewById(R.id.BackButton);
+
+        // NEW: find overlay views
+        connectingOverlay = findViewById(R.id.cameraConnectingOverlay);
+        overlayLogo       = findViewById(R.id.cameraOverlayLogo);
+        overlayStatusText = findViewById(R.id.cameraOverlayStatusText);
 
         if (webView == null || shutterButton == null || backButton == null) {
             Toast.makeText(this, "Missing views in activity_camera.xml", Toast.LENGTH_LONG).show();
@@ -110,7 +127,9 @@ public class CameraActivity extends AppCompatActivity {
         if (!hasWifiPermissions()) {
             requestWifiPermissions();
         } else {
-            connectToEspAp();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                connectToEspAp();
+            }
         }
     }
 
@@ -132,6 +151,67 @@ public class CameraActivity extends AppCompatActivity {
                 },
                 REQ_WIFI
         );
+    }
+
+    // ---- NEW: overlay helpers ----
+    private void showConnectingOverlay() {
+        if (connectingOverlay == null) return;
+
+        connectingOverlay.setVisibility(View.VISIBLE);
+        connectingOverlay.setAlpha(1f);
+
+        if (overlayLogo != null) {
+            overlayLogo.setVisibility(View.VISIBLE);
+            overlayLogo.setAlpha(1f);
+            overlayLogo.setScaleX(1f);
+            overlayLogo.setScaleY(1f);
+        }
+
+        if (overlayStatusText != null) {
+            overlayStatusText.setText("Connecting to camera...");
+        }
+
+        startLogoPulse();
+    }
+
+    private void startLogoPulse() {
+        if (overlayLogo == null) return;
+
+        if (logoPulseAnimator != null) {
+            logoPulseAnimator.cancel();
+        }
+
+        PropertyValuesHolder scaleX = PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.15f);
+        PropertyValuesHolder scaleY = PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.15f);
+
+        logoPulseAnimator = ObjectAnimator.ofPropertyValuesHolder(overlayLogo, scaleX, scaleY);
+        logoPulseAnimator.setDuration(700);
+        logoPulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        logoPulseAnimator.setRepeatMode(ValueAnimator.REVERSE);
+        logoPulseAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        logoPulseAnimator.start();
+    }
+
+    private void stopLogoPulse() {
+        if (logoPulseAnimator != null) {
+            logoPulseAnimator.cancel();
+            logoPulseAnimator = null;
+        }
+    }
+
+    private void fadeOutConnectingOverlay() {
+        if (connectingOverlay == null) return;
+
+        stopLogoPulse();
+
+        connectingOverlay.animate()
+                .alpha(0f)
+                .setDuration(400)
+                .withEndAction(() -> {
+                    connectingOverlay.setVisibility(View.GONE);
+                    connectingOverlay.setAlpha(1f);
+                })
+                .start();
     }
 
     // ---- Connect to ESP AP (Android 10+) ----
@@ -156,6 +236,10 @@ public class CameraActivity extends AppCompatActivity {
             return;
         }
 
+        // While connecting: disable shutter + show overlay
+        shutterButton.setEnabled(false);
+        showConnectingOverlay();
+
         networkCallback = new ConnectivityManager.NetworkCallback() {
             @Override
             public void onAvailable(Network network) {
@@ -173,14 +257,23 @@ public class CameraActivity extends AppCompatActivity {
 
                     webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
                     Toast.makeText(CameraActivity.this, "Connected to ESP Wi-Fi", Toast.LENGTH_SHORT).show();
+
+                    // Camera ready → enable shutter and hide overlay
+                    shutterButton.setEnabled(true);
+                    fadeOutConnectingOverlay();
                 });
             }
 
             @Override
             public void onUnavailable() {
-                runOnUiThread(() ->
-                        Toast.makeText(CameraActivity.this,
-                                "ESP network unavailable", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> {
+                    Toast.makeText(CameraActivity.this,
+                            "ESP network unavailable", Toast.LENGTH_SHORT).show();
+                    // Hide overlay even if failed
+                    fadeOutConnectingOverlay();
+                    // Keep shutter disabled (no connection) to avoid broken capture
+                    shutterButton.setEnabled(false);
+                });
             }
         };
 
@@ -304,6 +397,7 @@ public class CameraActivity extends AppCompatActivity {
         releaseEspNetwork();
         io.shutdown();
         if (webView != null) webView.destroy();
+        stopLogoPulse(); // NEW: clean up animation
     }
 
     // ---- Permission result ----

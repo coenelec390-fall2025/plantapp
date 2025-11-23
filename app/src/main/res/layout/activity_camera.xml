@@ -4,7 +4,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@drawable/profile_bg_gradient">
 
     <!-- WebView fills space above the controls -->
     <WebView
@@ -23,6 +24,7 @@
         android:layout_width="0dp"
         android:layout_height="125dp"
         android:padding="12dp"
+        android:background="@drawable/profile_card_bg"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -33,7 +35,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
-            android:background="@android:color/darker_gray"
+            android:background="@android:color/transparent"
             android:contentDescription="Go back"
             android:src="@android:drawable/ic_menu_revert"
             app:tint="#FFFFFF"
@@ -53,6 +55,48 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Full-screen "connecting" overlay on top -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/cameraConnectingOverlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#001018"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- SureLeaf logo pulsing in the center -->
+        <ImageView
+            android:id="@+id/cameraOverlayLogo"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:src="@drawable/sureleaf_logo"
+            android:scaleType="centerInside"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Status text below the logo -->
+        <TextView
+            android:id="@+id/cameraOverlayStatusText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Connecting to camera..."
+            android:textColor="#E8F5E9"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            app:layout_constraintTop_toBottomOf="@id/cameraOverlayLogo"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

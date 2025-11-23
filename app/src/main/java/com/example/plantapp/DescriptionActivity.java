@@ -1,12 +1,20 @@
 package com.example.plantapp;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
+import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.PorterDuff;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.OvershootInterpolator;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -46,6 +54,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -67,7 +76,7 @@ public class DescriptionActivity extends AppCompatActivity {
     private String commonName      = "";
     private int confidenceScore    = 0;
 
-    // NEW: final description that includes alternates etc.
+    // final description that includes alternates etc.
     private String finalDescriptionText = "";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -89,6 +98,19 @@ public class DescriptionActivity extends AppCompatActivity {
         Candidate(String c, String s, int k) { commonName = c; scientificName = s; confidence = k; }
     }
     private final List<Candidate> alternates = new ArrayList<>();
+
+    // ===== Overlay views / animation =====
+    private View identificationOverlay;
+    private ImageView overlayLogo;
+    private ImageView overlayStatusIcon;
+    private TextView overlayStatusText;
+    private ObjectAnimator logoPulseAnimator;
+
+    private enum IdentificationResult {
+        IDENTIFIED_OK,
+        WARNING,
+        UNKNOWN
+    }
 
     // ===== Expanded leak guards =====
     private static final Pattern LEAK_HEAD = Pattern.compile(
@@ -200,6 +222,12 @@ public class DescriptionActivity extends AppCompatActivity {
         plantTitle        = findViewById(R.id.PlantTitle);
         plantImageView    = findViewById(R.id.PlantImageView);
 
+        // Overlay views
+        identificationOverlay = findViewById(R.id.identificationOverlay);
+        overlayLogo           = findViewById(R.id.overlayLogo);
+        overlayStatusIcon     = findViewById(R.id.overlayStatusIcon);
+        overlayStatusText     = findViewById(R.id.overlayStatusText);
+
         plantTitle.setText("Plant Description\n" + userRole);
 
         disableButton(backBtn);
@@ -220,6 +248,10 @@ public class DescriptionActivity extends AppCompatActivity {
         confidenceBar.setVisibility(View.GONE);
         confidenceBar.setProgress(0);
 
+        // Show overlay + start pulsing logo
+        showIdentificationOverlay();
+
+        // Underlay "Loading..." text
         startLoadingDots(commonNameTv, "Loading");
 
         downloadImageAndRunGemini(imageUrl, userRole);
@@ -398,6 +430,71 @@ public class DescriptionActivity extends AppCompatActivity {
                 confidenceTv.setText("Confidence: " + confidenceScore + "%");
                 applyConfidenceColor(confidenceScore);
 
+                // ====== TOXIC / NON-PLANT HEURISTICS (more conservative) ======
+                String descLower = formattedDescription.toLowerCase(Locale.ROOT);
+                String nameLower = commonName.toLowerCase(Locale.ROOT);
+
+                // Non-plant detection
+                boolean isNonPlant =
+                        descLower.contains("not a plant") ||
+                                descLower.contains("no plant") ||
+                                descLower.contains("does not appear to be a plant") ||
+                                descLower.contains("this image does not show a plant") ||
+                                commonName.equalsIgnoreCase("unknown plant");
+
+                // Toxic detection – stricter, and ignores "non-toxic"/"not toxic"
+                boolean mentionsNonToxic =
+                        descLower.contains("non-toxic") ||
+                                descLower.contains("non toxic") ||
+                                descLower.contains("not toxic") ||
+                                descLower.contains("rarely toxic") ||
+                                descLower.contains("generally safe") ||
+                                descLower.contains("safe to handle") ||
+                                descLower.contains("safe if touched");
+
+                boolean isToxic = false;
+                if (!mentionsNonToxic) {
+                    // Strong phrases like "is toxic", "are poisonous", etc.
+                    Pattern toxicPattern = Pattern.compile(
+                            "\\b(is|are|can be|may be|considered|generally|often)\\s+(highly\\s+)?(toxic|poisonous|venomous)\\b",
+                            Pattern.CASE_INSENSITIVE
+                    );
+                    Matcher toxMatcher = toxicPattern.matcher(formattedDescription);
+                    if (toxMatcher.find()) {
+                        isToxic = true;
+                    }
+
+                    // Some direct patterns
+                    if (!isToxic) {
+                        String dl = descLower;
+                        if (dl.contains("highly toxic plant") ||
+                                dl.contains("poisonous plant") ||
+                                dl.contains("toxic plant") ||
+                                dl.contains("causes severe poisoning") ||
+                                dl.contains("can cause poisoning if ingested")) {
+                            isToxic = true;
+                        }
+                    }
+                }
+
+                // Decide overlay result:
+                // - Non-plant → UNKNOWN (grey question mark)
+                // - Toxic → WARNING (red alert)
+                // - Confident + not toxic + not non-plant → IDENTIFIED_OK (spin + pop)
+                // - Otherwise → UNKNOWN
+                IdentificationResult result;
+                if (isNonPlant) {
+                    result = IdentificationResult.UNKNOWN;
+                } else if (isToxic) {
+                    result = IdentificationResult.WARNING;
+                } else if (confidenceScore >= 80) {
+                    result = IdentificationResult.IDENTIFIED_OK;
+                } else {
+                    result = IdentificationResult.UNKNOWN;
+                }
+
+                onIdentificationFinished(result);
+
                 enableButton(backBtn);
                 enableButton(takeAnotherBtn);
             });
@@ -426,7 +523,7 @@ public class DescriptionActivity extends AppCompatActivity {
         data.put("commonName", commonName);
         data.put("scientificName", scientificName);
 
-        // NEW: save the final formatted description (with alternates) if available
+        // save the final formatted description (with alternates) if available
         String toSaveDesc = finalDescriptionText != null && !finalDescriptionText.isEmpty()
                 ? finalDescriptionText
                 : descriptionText;
@@ -441,6 +538,176 @@ public class DescriptionActivity extends AppCompatActivity {
                 .add(data)
                 .addOnFailureListener(e ->
                         Toast.makeText(this, "Failed to save history: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+    }
+
+    // ---------- overlay helpers ----------
+    private void showIdentificationOverlay() {
+        if (identificationOverlay == null) return;
+
+        identificationOverlay.setVisibility(View.VISIBLE);
+        identificationOverlay.setAlpha(1f);
+
+        if (overlayLogo != null) {
+            overlayLogo.setVisibility(View.VISIBLE);
+            overlayLogo.setAlpha(1f);
+            overlayLogo.setScaleX(1f);
+            overlayLogo.setScaleY(1f);
+            overlayLogo.setRotation(0f);
+        }
+
+        if (overlayStatusIcon != null) {
+            overlayStatusIcon.setVisibility(View.INVISIBLE);
+            overlayStatusIcon.setAlpha(0f);
+        }
+
+        if (overlayStatusText != null) {
+            overlayStatusText.setText("Identifying plant...");
+        }
+
+        startLogoPulse();
+    }
+
+    private void startLogoPulse() {
+        if (overlayLogo == null) return;
+
+        if (logoPulseAnimator != null) {
+            logoPulseAnimator.cancel();
+        }
+
+        PropertyValuesHolder scaleX = PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.15f);
+        PropertyValuesHolder scaleY = PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.15f);
+
+        logoPulseAnimator = ObjectAnimator.ofPropertyValuesHolder(overlayLogo, scaleX, scaleY);
+        logoPulseAnimator.setDuration(700);
+        logoPulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        logoPulseAnimator.setRepeatMode(ValueAnimator.REVERSE);
+        logoPulseAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        logoPulseAnimator.start();
+    }
+
+    private void stopLogoPulse() {
+        if (logoPulseAnimator != null) {
+            logoPulseAnimator.cancel();
+            logoPulseAnimator = null;
+        }
+    }
+
+    private void onIdentificationFinished(IdentificationResult result) {
+        if (identificationOverlay == null) return;
+
+        stopLogoPulse();
+
+        // SUCCESS: spin + pop the SureLeaf logo, no checkmark icon
+        if (result == IdentificationResult.IDENTIFIED_OK) {
+            if (overlayStatusText != null) {
+                overlayStatusText.setText("Plant identified!");
+            }
+            if (overlayStatusIcon != null) {
+                overlayStatusIcon.setVisibility(View.GONE);
+                overlayStatusIcon.setAlpha(0f);
+            }
+            animateLogoSuccess();
+            return;
+        }
+
+        // WARNING or UNKNOWN → use icon overlay
+        int iconRes;
+        int tintColor;
+        String statusText;
+
+        if (result == IdentificationResult.WARNING) {
+            iconRes = android.R.drawable.ic_dialog_alert;
+            tintColor = 0xFFF44336; // red
+            statusText = "Toxic plant detected";
+        } else { // UNKNOWN
+            iconRes = android.R.drawable.ic_menu_help;
+            tintColor = 0xFF9E9E9E; // grey
+            statusText = "Not sure";
+        }
+
+        if (overlayStatusIcon != null) {
+            overlayStatusIcon.setImageResource(iconRes);
+            overlayStatusIcon.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN);
+            overlayStatusIcon.setVisibility(View.VISIBLE);
+            overlayStatusIcon.setAlpha(0f);
+        }
+
+        if (overlayStatusText != null) {
+            overlayStatusText.setText(statusText);
+        }
+
+        if (overlayLogo != null) {
+            overlayLogo.animate()
+                    .alpha(0f)
+                    .setDuration(300)
+                    .withEndAction(() -> overlayLogo.setVisibility(View.INVISIBLE))
+                    .start();
+        }
+
+        if (overlayStatusIcon != null) {
+            overlayStatusIcon.animate()
+                    .alpha(1f)
+                    .setDuration(300)
+                    .withEndAction(() -> overlayStatusIcon.postDelayed(this::fadeOutOverlay, 600))
+                    .start();
+        } else {
+            fadeOutOverlay();
+        }
+    }
+
+    // Spin + pop animation for the logo on success
+    private void animateLogoSuccess() {
+        if (overlayLogo == null) {
+            fadeOutOverlay();
+            return;
+        }
+
+        overlayLogo.setVisibility(View.VISIBLE);
+        overlayLogo.setAlpha(1f);
+        overlayLogo.setScaleX(1f);
+        overlayLogo.setScaleY(1f);
+        overlayLogo.setRotation(0f);
+
+        // Spin: 0 → 360 with ease-in-out
+        ObjectAnimator spin = ObjectAnimator.ofFloat(overlayLogo, View.ROTATION, 0f, 360f);
+        spin.setDuration(450);
+        spin.setInterpolator(new AccelerateDecelerateInterpolator());
+
+        // Pop: 1 → 1.2 → 1 with overshoot feel
+        PropertyValuesHolder scaleX = PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.2f, 1f);
+        PropertyValuesHolder scaleY = PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.2f, 1f);
+        ObjectAnimator pop = ObjectAnimator.ofPropertyValuesHolder(overlayLogo, scaleX, scaleY);
+        pop.setDuration(300);
+        pop.setInterpolator(new OvershootInterpolator());
+
+        spin.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                pop.start();
+            }
+        });
+
+        pop.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                fadeOutOverlay();
+            }
+        });
+
+        spin.start();
+    }
+
+    private void fadeOutOverlay() {
+        if (identificationOverlay == null) return;
+
+        identificationOverlay.animate()
+                .alpha(0f)
+                .setDuration(400)
+                .withEndAction(() -> {
+                    identificationOverlay.setVisibility(View.GONE);
+                    identificationOverlay.setAlpha(1f);
+                })
+                .start();
     }
 
     // ---------- helpers ----------
@@ -569,5 +836,11 @@ public class DescriptionActivity extends AppCompatActivity {
     }
 
     @Override protected void onPause() { super.onPause(); stopLoadingDots(); }
-    @Override protected void onDestroy() { stopLoadingDots(); super.onDestroy(); }
+
+    @Override
+    protected void onDestroy() {
+        stopLoadingDots();
+        stopLogoPulse();
+        super.onDestroy();
+    }
 }
