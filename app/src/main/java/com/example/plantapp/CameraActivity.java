@@ -380,11 +380,8 @@ public class CameraActivity extends AppCompatActivity {
                 uploadToFirebase(jpeg);
 
             } catch (Exception e) {
-                runOnUiThread(() -> {
-                    Toast.makeText(CameraActivity.this,
-                            "Capture error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    shutterButton.setEnabled(true);
-                });
+                // NEW: small message + go home
+                runOnUiThread(() -> goHomeOnCaptureError("Please restart your camera"));
             }
         });
     }
@@ -427,6 +424,25 @@ public class CameraActivity extends AppCompatActivity {
                             "Upload failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     shutterButton.setEnabled(true);
                 });
+    }
+
+    // ---- Capture error -> go home ----
+    private void goHomeOnCaptureError(String message) {
+        try {
+            Toast.makeText(CameraActivity.this, message, Toast.LENGTH_SHORT).show();
+        } catch (Exception ignored) {}
+
+        // stop any pending camera connect timeout
+        cancelConnectTimeout();
+
+        // unbind from ESP/network if bound
+        releaseEspNetwork();
+
+        // navigate to MainActivity and finish this screen
+        Intent i = new Intent(CameraActivity.this, MainActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(i);
+        finish();
     }
 
     // ---- Lifecycle ----
