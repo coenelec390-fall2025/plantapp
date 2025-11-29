@@ -24,6 +24,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
+//shows details of past capture
 public class HistoryDescriptionActivity extends AppCompatActivity {
 
     private TextView plantTitleTv;
@@ -68,6 +69,7 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         confidenceBar       = findViewById(R.id.ConfidenceBar);
         deleteFromHistoryBtn= findViewById(R.id.DeleteFromHistoryButton);
 
+        //read capture details from intent extras
         Intent intent = getIntent();
         docId          = intent.getStringExtra("docId");
         userRole       = intent.getStringExtra("userRole");
@@ -79,10 +81,12 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         dateTime       = intent.getStringExtra("dateTime");
         allowDelete    = intent.getBooleanExtra("allowDelete", false);
 
+        //default role
         if (userRole == null || userRole.isEmpty()) {
             userRole = "Hiker";
         }
 
+        //set title at top
         if (plantTitleTv != null) {
             if (dateTime != null && !dateTime.isEmpty()) {
                 plantTitleTv.setText("Previous Capture\n" + dateTime + " · " + userRole);
@@ -91,17 +95,20 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
             }
         }
 
+        //populate text fields with data
         commonNameTv.setText(
                 (commonName != null && !commonName.isEmpty()) ? commonName : "Unknown plant"
         );
         scientificNameTv.setText(scientificName != null ? scientificName : "");
         descriptionTv.setText(description != null ? description : "No description available.");
 
+        //confidence bar
         confidenceBar.setMax(100);
         confidenceBar.setProgress(confidence);
         confidenceTv.setText("Confidence: " + confidence + "%");
         applyConfidenceColor(confidence);
 
+        //load image from firestore
         if (imageUrl != null && !imageUrl.trim().isEmpty()) {
             try {
                 StorageReference ref = FirebaseStorage.getInstance().getReferenceFromUrl(imageUrl);
@@ -132,7 +139,7 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         }
     }
 
-
+    //confidence meter colour
     private void applyConfidenceColor(int score) {
         int resId;
         if (score > 80) {
@@ -147,6 +154,7 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         confidenceBar.setProgress(confidenceBar.getProgress());
     }
 
+    //deletes a capture from history
     private void deleteCaptureFromHistory() {
         if (docId == null || docId.isEmpty()) {
             Toast.makeText(this, "Missing capture ID", Toast.LENGTH_SHORT).show();

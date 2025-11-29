@@ -30,11 +30,11 @@ import java.util.Map;
 
 public class SignupActivity extends AppCompatActivity {
 
-    // initialize database
+    //initialize database
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
 
-    // initialize ui elements
+    //initialize ui elements
     private EditText etUsername;
     private EditText etEmail;
     private EditText etPassword;
@@ -48,11 +48,10 @@ public class SignupActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_signup);
 
-        // get instance of firebase auth and database
+        //get instance of firebase auth and database
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
 
-        // link ui elements to xml ids
         etUsername        = findViewById(R.id.editTextUsername);
         etEmail           = findViewById(R.id.editTextEmail);
         etPassword        = findViewById(R.id.editTextPassword);
@@ -60,31 +59,32 @@ public class SignupActivity extends AppCompatActivity {
         btnCreateAccount  = findViewById(R.id.buttonCreateAccount);
         btnBackToLogin    = findViewById(R.id.buttonBackToLogin);
 
-        // signup button creates account
+        //signup button creates account
         btnCreateAccount.setOnClickListener(v -> attemptSignup());
 
-        // login button takes user back to login activity
+        //login button takes user back to login activity
         btnBackToLogin.setOnClickListener(v -> {
             startActivity(new Intent(SignupActivity.this, LoginActivity.class));
             finish();
         });
     }
 
+    //validate all signup fields
     private void attemptSignup() {
-        // store users signup information
+        //store users signup information
         String username = etUsername.getText().toString().trim();
         String email    = etEmail.getText().toString().trim();
         String pass     = etPassword.getText().toString();
         String confirm  = etConfirmPassword.getText().toString();
 
-        // field error control
+        //field error control
         if (TextUtils.isEmpty(username)) {
             etUsername.setError("Username required");
             etUsername.requestFocus();
             return;
         }
 
-        // username must be ONLY letters A–Z / a–z (no punctuation, digits, emojis)
+        //username must be letters
         if (!username.matches("[A-Za-z0-9]+")) {
 
             etUsername.setError("Username can only contain letters A–Z (no spaces or symbols)");
@@ -113,13 +113,14 @@ public class SignupActivity extends AppCompatActivity {
             return;
         }
 
-        // passwords cannot contain emojis (but can have special characters)
+        //passwords cannot contain emojis
         if (containsEmoji(pass)) {
             etPassword.setError("Password cannot contain emoji characters");
             etPassword.requestFocus();
             return;
         }
 
+        //match passwords
         if (!pass.equals(confirm)) {
             etConfirmPassword.setError("Passwords do not match");
             etConfirmPassword.requestFocus();
@@ -134,7 +135,7 @@ public class SignupActivity extends AppCompatActivity {
 
         setUiLoading(true);
 
-        // create user using firebase auth
+        //create user using firebase auth
         mAuth.createUserWithEmailAndPassword(email, pass)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                     @Override public void onComplete(@NonNull Task<AuthResult> task) {
@@ -168,13 +169,13 @@ public class SignupActivity extends AppCompatActivity {
                 });
     }
 
-    // button opacity changes depending on loading status
+    //button opacity changes depending on loading status
     private void setUiLoading(boolean loading) {
         btnCreateAccount.setEnabled(!loading);
         btnCreateAccount.setAlpha(loading ? 0.6f : 1f);
     }
 
-    // store username, email, creationdate in firestore under uid/{username}
+    //store username, email, creationdate in firestore under uid
     private void saveUsernameToFirestore(String uid, String username, String email) {
         Map<String, Object> userData = new HashMap<>();
         userData.put("username", username);
@@ -205,6 +206,7 @@ public class SignupActivity extends AppCompatActivity {
         super.onStart();
     }
 
+    //check if string contains emoji
     private boolean containsEmoji(String input) {
         if (input == null) return false;
 
@@ -219,6 +221,7 @@ public class SignupActivity extends AppCompatActivity {
         return false;
     }
 
+    //check for emojis in unicode
     private boolean isEmojiCodePoint(int codePoint) {
         return
                 (codePoint >= 0x1F600 && codePoint <= 0x1F64F) ||

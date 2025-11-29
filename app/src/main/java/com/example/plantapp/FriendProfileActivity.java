@@ -56,6 +56,7 @@ public class FriendProfileActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_friend_profile);
 
+        //get friend info
         friendUid = getIntent().getStringExtra("friendUid");
         friendUsername = getIntent().getStringExtra("friendUsername");
 
@@ -95,6 +96,7 @@ public class FriendProfileActivity extends AppCompatActivity {
         loadFriendHistory();
     }
 
+    //query firestore for friends plant history
     private void loadFriendHistory() {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
@@ -145,6 +147,7 @@ public class FriendProfileActivity extends AppCompatActivity {
                                 Toast.LENGTH_SHORT).show());
     }
 
+    //shows the number of plants friend has
     private void updateFriendStats(int count) {
         friendCounterTv.setText("They've identified " + count + " plants!");
 
@@ -176,6 +179,7 @@ public class FriendProfileActivity extends AppCompatActivity {
         friendRankBar.setProgress(progress);
     }
 
+    //UNADD FRIEND!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     private void removeFriend() {
         FirebaseUser current = FirebaseAuth.getInstance().getCurrentUser();
         if (current == null) {
@@ -213,6 +217,7 @@ public class FriendProfileActivity extends AppCompatActivity {
                 });
     }
 
+    //class for a plant in history
     private static class PlantCapture {
         final String docId;
         final String imageUrl;
@@ -245,6 +250,7 @@ public class FriendProfileActivity extends AppCompatActivity {
         }
     }
 
+    //adapter for displaying friends capture history
     private class FriendHistoryAdapter extends ArrayAdapter<PlantCapture> {
 
         private final LayoutInflater inflater = LayoutInflater.from(FriendProfileActivity.this);
@@ -297,6 +303,7 @@ public class FriendProfileActivity extends AppCompatActivity {
             return row;
         }
 
+        //format date and time for the capture
         private String formatDate(PlantCapture item) {
             if (item == null) return "";
             if (item.timestamp > 0L) {

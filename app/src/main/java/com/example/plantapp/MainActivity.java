@@ -39,23 +39,25 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+//main screen of the app
 public class MainActivity extends AppCompatActivity {
 
-    // Firebase
+    //Firebase
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
 
-    // UI
+    //UI
     private ImageButton profileButton, cameraButton, infoButton;
     private Spinner roleSpinner;
 
-    // "My Garden" UI
+    //"My Garden" UI
     private LinearLayout gardenStripLayout;
     private TextView gardenEmptyText;
 
+    //PERSONA!!!!!!! (disturbing the peace)
     private final String[] roles = {"Hiker", "Gardener", "Chef"};
     private boolean suppressSpinnerCallback = false;
-    // default role is hiker
+    //default role is hiker
     private String currentRole = "Hiker";
 
     @SuppressLint("MissingInflatedId")
@@ -65,7 +67,6 @@ public class MainActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 
-        // padding
         View root = findViewById(R.id.main);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -73,11 +74,10 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        // initialize firestore / auth instance
+        //initialize firestore / auth instance
         mAuth = FirebaseAuth.getInstance();
         db   = FirebaseFirestore.getInstance();
 
-        // link xml elements by id
         profileButton = findViewById(R.id.ProfileButton);
         cameraButton  = findViewById(R.id.CameraButton);
         roleSpinner   = findViewById(R.id.RoleSpinner);
@@ -86,16 +86,15 @@ public class MainActivity extends AppCompatActivity {
         gardenStripLayout = findViewById(R.id.GardenStrip);
         gardenEmptyText   = findViewById(R.id.GardenEmptyText);
 
-        // SPINNER ADAPTER Role
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
                 this,
-                R.layout.spinner_role_item,      // layout for the closed spinner
+                R.layout.spinner_role_item,
                 roles
         );
         adapter.setDropDownViewResource(R.layout.spinner_role_dropdown_item);
         roleSpinner.setAdapter(adapter);
 
-        // listener for spinner options
+        //listener for spinner options
         roleSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (suppressSpinnerCallback) return;
@@ -109,33 +108,32 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onNothingSelected(AdapterView<?> parent) { }
         });
 
-        // info (i) button – show persona description
+        //info button to show persona description
         infoButton.setOnClickListener(v -> showRoleInfoDialog());
 
-        // go to profile/settings activity
+        //go to profile activity
         profileButton.setOnClickListener(v -> {
             startActivity(new Intent(MainActivity.this, SettingsActivity.class));
         });
 
-        // go to camera activity
+        //go to camera activity
         cameraButton.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, CameraActivity.class);
             intent.putExtra("userRole", currentRole); // pass the role forward
             startActivity(intent);
         });
 
-        // load role that is stored in firebase
+        //load role that is stored in firebase
         loadRoleFromFirestore();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // refresh garden thumbnails whenever we come back to main screen
         loadGardenThumbnails();
     }
 
-    // small dialog that explains the currently selected persona
+    //small dialog that explains then persona
     private void showRoleInfoDialog() {
         LayoutInflater inflater = LayoutInflater.from(this);
         View dialogView = inflater.inflate(R.layout.dialog_role_info, null, false);
@@ -183,7 +181,7 @@ public class MainActivity extends AppCompatActivity {
         dialog.show();
     }
 
-
+    //load recent pictures from firebase and show in my garden
     private void loadGardenThumbnails() {
         FirebaseUser user = mAuth.getCurrentUser();
         if (user == null) {
@@ -255,7 +253,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-
+    //create a thumbnail view and add it to the garden strip, can be clicked to go to history
     private void addGardenThumbnail(String docId,
                                     String imageUrl,
                                     String role,
@@ -327,16 +325,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
-
-
+    //convert dp units to pixels
     private int dpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
         return Math.round(dp * density);
     }
 
 
-    // load role stored in firebase
+    //load role stored in firebase
     private void loadRoleFromFirestore() {
         FirebaseUser user = mAuth.getCurrentUser();
         if (user == null) return;
@@ -364,7 +360,7 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
-    // save role to firestore
+    //save role to firestore
     private void saveUserRole(String role) {
         FirebaseUser user = mAuth.getCurrentUser();
         if (user == null) {
@@ -381,7 +377,7 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(this, "Failed to update role: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
-    // if not logged in, take user to log in page
+    //if not logged in, take user to log in page
     @Override
     protected void onStart() {
         super.onStart();

@@ -23,6 +23,7 @@ import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
+//login screen for the app
 public class LoginActivity extends AppCompatActivity {
     private FirebaseAuth mAuth;
     private EditText etEmail;
@@ -36,6 +37,7 @@ public class LoginActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_login);
 
+        //initialize FirebaseAuth instance
         mAuth = FirebaseAuth.getInstance();
 
         etEmail          = findViewById(R.id.editTextEmail);
@@ -43,7 +45,7 @@ public class LoginActivity extends AppCompatActivity {
         btnLogin         = findViewById(R.id.buttonLogin);
         btnCreateAccount = findViewById(R.id.buttonCreateAccount);
 
-        // set up click listeners for login and create account
+        //set up click listeners for login and create account
         btnLogin.setOnClickListener(v -> attemptLogin());
         btnCreateAccount.setOnClickListener(v -> {
             Intent intent = new Intent(LoginActivity.this, SignupActivity.class);
@@ -54,6 +56,7 @@ public class LoginActivity extends AppCompatActivity {
         tvForgotPassword.setOnClickListener(v -> showForgotPasswordDialog());
     }
 
+    //show a dialog that lets a user reset their password
     private void showForgotPasswordDialog() {
 
         android.view.LayoutInflater inflater = android.view.LayoutInflater.from(this);
@@ -111,7 +114,7 @@ public class LoginActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    // try to login with email and password if they exist
+    //try to login with email and password if they exist
     private void attemptLogin() {
         String email = etEmail.getText().toString().trim();
         String pass  = etPassword.getText().toString();
@@ -135,7 +138,7 @@ public class LoginActivity extends AppCompatActivity {
 
         setUiLoading(true);
 
-        // sign in through firebase
+        //sign in through firebase
         mAuth.signInWithEmailAndPassword(email, pass)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                     @Override
@@ -159,7 +162,7 @@ public class LoginActivity extends AppCompatActivity {
                 });
     }
 
-    // loading UI while logging in
+    //loading UI while logging in
     private void setUiLoading(boolean loading) {
         btnLogin.setEnabled(!loading);
         btnLogin.setAlpha(loading ? 0.6f : 1f);
@@ -169,7 +172,7 @@ public class LoginActivity extends AppCompatActivity {
     public void onStart() {
         super.onStart();
 
-        // if already logged in go directly to main activity
+        //if already logged in go directly to main activity
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser != null) {
             startActivity(new Intent(LoginActivity.this, MainActivity.class));

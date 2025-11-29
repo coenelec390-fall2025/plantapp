@@ -100,12 +100,14 @@ public class DescriptionActivity extends AppCompatActivity {
     private TextView overlayStatusText;
     private ObjectAnimator logoPulseAnimator;
 
+    //possible identification results
     private enum IdentificationResult {
         IDENTIFIED_OK,
         WARNING,
         UNKNOWN
     }
 
+    //counters to possible issues with the thought appearing instead of the result
     private static final Pattern LEAK_HEAD = Pattern.compile(
             "^(?:\\s*(?i:(THOUGHTS?|THOUGHT|ANALYSIS|ANALYZE|REASONING|REASON|THINKING|THINK|PLAN|REFLECTION|CHAIN[- ]?OF[- ]?THOUGHT))\\s*:?\\b.*\\R)+",
             Pattern.DOTALL);
@@ -163,6 +165,7 @@ public class DescriptionActivity extends AppCompatActivity {
 
     private interface OnText { void accept(String text); }
 
+    //retries if the response looks like a thought
     private void generateTextWithRetry(GenerativeModelFutures model, Content content, int maxRetries, OnText onText) {
         Executor cb = MoreExecutors.directExecutor();
         ListenableFuture<GenerateContentResponse> fut = model.generateContent(content);
@@ -186,6 +189,7 @@ public class DescriptionActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_description);
 
+        //get role and image from camera
         userRole = getIntent().getStringExtra("userRole");
         imageUrl = getIntent().getStringExtra("imageUrl");
         if (userRole == null) userRole = "Hiker";
@@ -244,6 +248,7 @@ public class DescriptionActivity extends AppCompatActivity {
         downloadImageAndRunGemini(imageUrl, userRole);
     }
 
+    //download the image from firebase and run it through gemini to create description
     private void downloadImageAndRunGemini(String url, String role) {
         StorageReference ref = FirebaseStorage.getInstance().getReferenceFromUrl(url);
         final long MAX = 8L * 1024L * 1024L;
@@ -346,7 +351,7 @@ public class DescriptionActivity extends AppCompatActivity {
         });
     }
 
-    // prompts
+    //prompts for specific roles
     private String buildRolePromptNoFormatting(String roleRaw, String plantNameHint) {
         String role = (roleRaw == null) ? "" : roleRaw.trim().toLowerCase();
         String baseRule =
@@ -373,6 +378,7 @@ public class DescriptionActivity extends AppCompatActivity {
         }
     }
 
+    //populate the UI with the descriptions after responses are generated
     private void maybeDeliverAll() {
         if (pending.decrementAndGet() == 0) {
             runOnUiThread(() -> {
@@ -472,6 +478,7 @@ public class DescriptionActivity extends AppCompatActivity {
         }
     }
 
+    //set colour of confidence meter based on confidence
     private void applyConfidenceColor(int score) {
         int res = (score > 80)
                 ? R.drawable.progress_green
@@ -480,6 +487,7 @@ public class DescriptionActivity extends AppCompatActivity {
         confidenceBar.setProgress(confidenceBar.getProgress());
     }
 
+    //save the capture metadata to firebase
     private void saveCaptureMetadataIfNeeded() {
         if (savedOnce.getAndSet(true)) return;
         if (FirebaseAuth.getInstance().getCurrentUser() == null) return;
@@ -509,6 +517,7 @@ public class DescriptionActivity extends AppCompatActivity {
                         Toast.makeText(this, "Failed to save history: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
+    //begin loading animation as AI identifies
     private void showIdentificationOverlay() {
         if (identificationOverlay == null) return;
 
@@ -535,6 +544,7 @@ public class DescriptionActivity extends AppCompatActivity {
         startLogoPulse();
     }
 
+    //start logo animation
     private void startLogoPulse() {
         if (overlayLogo == null) return;
 
@@ -553,6 +563,7 @@ public class DescriptionActivity extends AppCompatActivity {
         logoPulseAnimator.start();
     }
 
+    //stop logo animation
     private void stopLogoPulse() {
         if (logoPulseAnimator != null) {
             logoPulseAnimator.cancel();
@@ -560,6 +571,7 @@ public class DescriptionActivity extends AppCompatActivity {
         }
     }
 
+    //handle overlay once plant is identified
     private void onIdentificationFinished(IdentificationResult result) {
         if (identificationOverlay == null) return;
 
@@ -621,7 +633,7 @@ public class DescriptionActivity extends AppCompatActivity {
         }
     }
 
-    // Spin + pop animation for the logo on success
+    //animation for successful ID
     private void animateLogoSuccess() {
         if (overlayLogo == null) {
             fadeOutOverlay();
@@ -661,6 +673,7 @@ public class DescriptionActivity extends AppCompatActivity {
         spin.start();
     }
 
+    //fade out overlay and show description UI
     private void fadeOutOverlay() {
         if (identificationOverlay == null) return;
 
@@ -674,6 +687,7 @@ public class DescriptionActivity extends AppCompatActivity {
                 .start();
     }
 
+    //extract the first 3 digits from a string
     private int extractFirstInt(String s) {
         if (s == null) return 0;
         Matcher m = Pattern.compile("(\\d{1,3})").matcher(s);
@@ -684,6 +698,7 @@ public class DescriptionActivity extends AppCompatActivity {
     }
     private int clamp0to100(int v) { return Math.max(0, Math.min(100, v)); }
 
+    //loading dots animation
     private void startLoadingDots(TextView target, String base) {
         if (target == null || loading) return;
         loading = true;
@@ -704,9 +719,12 @@ public class DescriptionActivity extends AppCompatActivity {
         loading = false;
         if (loadingRunnable != null) handler.removeCallbacks(loadingRunnable);
     }
+
+    //button controls
     private void disableButton(View btn) { if (btn != null) { btn.setEnabled(false); btn.setAlpha(0.5f); } }
     private void enableButton(View btn)  { if (btn != null) { btn.setEnabled(true);  btn.setAlpha(1f);   } }
 
+    //cleans the text but preserves dashes
     private String sanitizePlainTextKeepDashes(String s) {
         if (s == null) return "";
         s = stripThoughtPreamble(s);
@@ -717,11 +735,15 @@ public class DescriptionActivity extends AppCompatActivity {
         s = s.replaceAll("\\s+", " ").trim();
         return s;
     }
+
+    //converts text to formatted points
     private String formatPoints(String text) {
         if (text == null) return "";
         String formatted = text.replaceAll("\\s*>\\s*", "\n\n");
         return formatted.trim();
     }
+
+    //cleans up plain text
     private String sanitizePlainText(String s) {
         if (s == null) return "";
         s = stripThoughtPreamble(s);
@@ -732,6 +754,8 @@ public class DescriptionActivity extends AppCompatActivity {
         s = s.replaceAll("\\s+", " ").trim();
         return s;
     }
+
+    //extracts and cleans the scientific name
     private String cleanScientificName(String raw) {
         if (raw == null) return "";
         String s = sanitizePlainText(raw);
@@ -741,6 +765,8 @@ public class DescriptionActivity extends AppCompatActivity {
         if (m.find()) return m.group(1);
         return s.split("\\R", 2)[0].trim();
     }
+
+    //extracts and cleans the common name
     private String cleanCommonName(String raw) {
         if (raw == null) return "";
         String s = sanitizePlainText(raw);
@@ -756,6 +782,8 @@ public class DescriptionActivity extends AppCompatActivity {
         if (startsWithLeak(first)) first = "Unknown plant";
         return first.length() > 40 ? first.substring(0, 40) + "…" : first;
     }
+
+    //parse common name JSON from model
     private String parseCommonNameJson(String raw) {
         try {
             String json = raw.replaceAll("```(?:json)?", "").replace("```", "").trim();
@@ -766,6 +794,8 @@ public class DescriptionActivity extends AppCompatActivity {
             return "";
         }
     }
+
+    //parse a list of possible alternates
     private void parseAlternatesJson(String raw) {
         alternates.clear();
         try {
@@ -784,6 +814,8 @@ public class DescriptionActivity extends AppCompatActivity {
             if (alternates.size() > 3) alternates.subList(3, alternates.size()).clear();
         } catch (Exception ignored) {}
     }
+
+    //build a sentence that lists 3 alternate candidates
     private String buildAlternatesSentence(List<Candidate> items) {
         List<String> names = new ArrayList<>();
         for (Candidate c : items) {

@@ -47,13 +47,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class CameraActivity extends AppCompatActivity {
-
+    //ESP32 cam
     private static final String ESP_SSID = "ESP32-CAM";
     private static final String ESP_PASS = "12345678";
     private static final String ESP_BASE = "http://192.168.4.1";
     private static final int REQ_WIFI = 1001;
 
-    // How long we wait for camera connection before timing out (ms)
+    //camera connection time out (ms)
     private static final long CONNECT_TIMEOUT_MS = 30_000L;
 
     private String userRole;
@@ -66,13 +66,13 @@ public class CameraActivity extends AppCompatActivity {
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
 
-    // Connecting overlay views + animation
+    //connecting animations
     private View connectingOverlay;
     private ImageView overlayLogo;
     private TextView overlayStatusText;
     private ObjectAnimator logoPulseAnimator;
 
-    // Timeout handling for camera connection
+    //timeout handling for camera connection
     private final Handler timeoutHandler = new Handler(Looper.getMainLooper());
     private Runnable connectTimeoutRunnable;
     private boolean connectionDone = false;
@@ -83,6 +83,7 @@ public class CameraActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_camera);
 
+        //retrieve user role
         userRole = getIntent().getStringExtra("userRole");
 
         View root = findViewById(R.id.main);
@@ -92,11 +93,12 @@ public class CameraActivity extends AppCompatActivity {
             return insets;
         });
 
+        //main UI elements
         webView = findViewById(R.id.webView);
         shutterButton = findViewById(R.id.ShutterButton);
         ImageButton backButton = findViewById(R.id.BackButton);
 
-        // find overlay views
+        //find overlay views
         connectingOverlay = findViewById(R.id.cameraConnectingOverlay);
         overlayLogo       = findViewById(R.id.cameraOverlayLogo);
         overlayStatusText = findViewById(R.id.cameraOverlayStatusText);
@@ -107,6 +109,7 @@ public class CameraActivity extends AppCompatActivity {
             return;
         }
 
+        //configure to display ESP32 view
         webView.setWebViewClient(new WebViewClient());
         WebSettings ws = webView.getSettings();
         ws.setJavaScriptEnabled(true);
@@ -120,6 +123,7 @@ public class CameraActivity extends AppCompatActivity {
             finish();
         });
 
+        //image capture
         shutterButton.setOnClickListener(v -> {
             shutterButton.setEnabled(false);
             captureFromEsp();
@@ -133,6 +137,7 @@ public class CameraActivity extends AppCompatActivity {
             return;
         }
 
+        //check for wifi permissions
         if (!hasWifiPermissions()) {
             requestWifiPermissions();
         } else {
@@ -142,6 +147,7 @@ public class CameraActivity extends AppCompatActivity {
         }
     }
 
+    //checks for wifi permissions
     private boolean hasWifiPermissions() {
         boolean fine = ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
@@ -150,6 +156,7 @@ public class CameraActivity extends AppCompatActivity {
         return fine && nearby;
     }
 
+    //request wifi permissions
     private void requestWifiPermissions() {
         ActivityCompat.requestPermissions(
                 this,
@@ -161,6 +168,7 @@ public class CameraActivity extends AppCompatActivity {
         );
     }
 
+    //shows animation overlay when connecting to camera
     private void showConnectingOverlay() {
         if (connectingOverlay == null) return;
 
@@ -181,6 +189,7 @@ public class CameraActivity extends AppCompatActivity {
         startLogoPulse();
     }
 
+    //logo animation for connecting overlay
     private void startLogoPulse() {
         if (overlayLogo == null) return;
 
@@ -199,6 +208,7 @@ public class CameraActivity extends AppCompatActivity {
         logoPulseAnimator.start();
     }
 
+    //stop and clear the animation
     private void stopLogoPulse() {
         if (logoPulseAnimator != null) {
             logoPulseAnimator.cancel();
@@ -206,6 +216,7 @@ public class CameraActivity extends AppCompatActivity {
         }
     }
 
+    //fade out into camera view
     private void fadeOutConnectingOverlay() {
         if (connectingOverlay == null) return;
 
@@ -221,6 +232,7 @@ public class CameraActivity extends AppCompatActivity {
                 .start();
     }
 
+    //cancel the timeout when connected
     private void cancelConnectTimeout() {
         if (connectTimeoutRunnable != null) {
             timeoutHandler.removeCallbacks(connectTimeoutRunnable);
@@ -228,7 +240,7 @@ public class CameraActivity extends AppCompatActivity {
         }
     }
 
-    // Connect to ESP
+    //connect to ESP32 camera
     @RequiresApi(29)
     private void connectToEspAp() {
         WifiNetworkSpecifier.Builder builder =
@@ -282,6 +294,7 @@ public class CameraActivity extends AppCompatActivity {
                 });
             }
 
+            //called if we couldn't join the ESP network
             @Override
             public void onUnavailable() {
                 if (connectionDone) return;
@@ -324,6 +337,7 @@ public class CameraActivity extends AppCompatActivity {
         timeoutHandler.postDelayed(connectTimeoutRunnable, CONNECT_TIMEOUT_MS);
     }
 
+    //unbind from ESP when done with it
     private void releaseEspNetwork() {
         try {
             if (connectivityManager != null) {
@@ -337,7 +351,7 @@ public class CameraActivity extends AppCompatActivity {
         espNetwork = null;
     }
 
-    // Capture from ESP and upload
+    //capture from ESP and upload
     private void captureFromEsp() {
         io.execute(() -> {
             try {
@@ -364,10 +378,9 @@ public class CameraActivity extends AppCompatActivity {
 
                 byte[] jpeg = baos.toByteArray();
 
-                // Disconnect from ESP so phone can use its normal internet again
+                //disconnect from ESP so phone can use its normal internet again
                 runOnUiThread(this::releaseEspNetwork);
 
-                // Give the phone a moment to switch back
                 Thread.sleep(2000);
 
                 uploadToFirebase(jpeg);
@@ -378,6 +391,7 @@ public class CameraActivity extends AppCompatActivity {
         });
     }
 
+    //uploads the picture to firebase to the specific account
     private void uploadToFirebase(byte[] jpeg) {
         String uid;
         try {
@@ -418,6 +432,7 @@ public class CameraActivity extends AppCompatActivity {
                 });
     }
 
+    //handles capture error, sends back to home page
     private void goHomeOnCaptureError(String message) {
         try {
             Toast.makeText(CameraActivity.this, message, Toast.LENGTH_SHORT).show();
@@ -456,6 +471,7 @@ public class CameraActivity extends AppCompatActivity {
         stopLogoPulse();
     }
 
+    //handle the results of wifi permission request
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String[] permissions,

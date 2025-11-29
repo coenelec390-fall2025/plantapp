@@ -38,6 +38,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+//this may say settings activity, but if you read a little between the lines you can see that its actually the profile activity. just a glimpse into my dark twisted mind.
 public class SettingsActivity extends AppCompatActivity {
 
     private TextView usernameDisplay;
@@ -51,15 +52,15 @@ public class SettingsActivity extends AppCompatActivity {
     private TextView historyEmptyText;
     private TextView friendsEmptyText;
 
-    // history
+    //history
     private final List<PlantCapture> historyItems = new ArrayList<>();
     private HistoryAdapter historyAdapter;
 
-    // friends list (bottom of screen)
+    //friends list (bottom of screen)
     private final List<FriendItem> friendItems = new ArrayList<>();
     private FriendAdapter friendAdapter;
 
-    // friend request dialog data
+    //friend request dialog data
     private final List<FriendRequestItem> incomingRequests = new ArrayList<>();
     private final List<FriendRequestItem> outgoingRequests = new ArrayList<>();
     private IncomingAdapter incomingAdapter;
@@ -84,6 +85,7 @@ public class SettingsActivity extends AppCompatActivity {
         auth = FirebaseAuth.getInstance();
         db   = FirebaseFirestore.getInstance();
 
+        //sends user to login if not signed in
         FirebaseUser user = auth.getCurrentUser();
         if (user == null) {
             startActivity(new Intent(this, LoginActivity.class));
@@ -92,7 +94,6 @@ public class SettingsActivity extends AppCompatActivity {
         }
         currentUid = user.getUid();
 
-        // padding to not overlap with camera hole
         View root = findViewById(R.id.main);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -151,9 +152,10 @@ public class SettingsActivity extends AppCompatActivity {
         super.onResume();
         loadHistory();
         loadFriends();
-        loadFriendRequestCounts();   // updates badge
+        loadFriendRequestCounts();
     }
 
+    //load the username from the user
     private void loadUsername() {
         db.collection("users").document(currentUid).get()
                 .addOnSuccessListener(doc -> {
@@ -170,6 +172,7 @@ public class SettingsActivity extends AppCompatActivity {
                 });
     }
 
+    //load the captures the user has taken
     private void loadHistory() {
         db.collection("users")
                 .document(currentUid)
@@ -213,6 +216,7 @@ public class SettingsActivity extends AppCompatActivity {
                                 Toast.LENGTH_SHORT).show());
     }
 
+    //update the number of identified plants in the user profile
     private void updatePlantStats(int count) {
         plantCounterText.setText("You've identified " + count + " plants!");
 
@@ -240,6 +244,7 @@ public class SettingsActivity extends AppCompatActivity {
         rankProgressBar.setProgress(progress);
     }
 
+    //clears the user's history of plant captures
     private void clearHistory() {
         if (historyItems.isEmpty()) {
             Toast.makeText(this, "No history to clear", Toast.LENGTH_SHORT).show();
@@ -259,6 +264,7 @@ public class SettingsActivity extends AppCompatActivity {
         Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show();
     }
 
+    //model for plant capture in profile history list
     private static class PlantCapture {
         final String docId;
         final String imageUrl;
@@ -291,6 +297,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    //adapter for the capture history list
     private class HistoryAdapter extends ArrayAdapter<PlantCapture> {
         private final LayoutInflater inflater = LayoutInflater.from(SettingsActivity.this);
         private final SimpleDateFormat sdf =
@@ -338,6 +345,7 @@ public class SettingsActivity extends AppCompatActivity {
             return row;
         }
 
+        //format date
         private String formatDate(PlantCapture item) {
             if (item.timestamp > 0L) {
                 return sdf.format(new Date(item.timestamp));
@@ -349,6 +357,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    //friend list item model
     private static class FriendItem {
         final String friendUid;
         final String friendUsername;
@@ -359,6 +368,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    //load all friends from the users collection
     private void loadFriends() {
         db.collection("users")
                 .document(currentUid)
@@ -384,6 +394,7 @@ public class SettingsActivity extends AppCompatActivity {
                                 Toast.LENGTH_SHORT).show());
     }
 
+    //adapter to display friends as buttons, opens a friends profile
     private class FriendAdapter extends ArrayAdapter<FriendItem> {
         FriendAdapter(List<FriendItem> items) {
             super(SettingsActivity.this, android.R.layout.simple_list_item_1, items);
@@ -419,7 +430,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-
+    //model for friend request
     private static class FriendRequestItem {
         final String otherUid;
         final String otherUsername;
@@ -430,6 +441,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    //open the friend dialog to send or receive requests
     private void openFriendsDialog() {
         LayoutInflater inflater = LayoutInflater.from(this);
         View dialogView = inflater.inflate(R.layout.dialog_friends, null, false);
@@ -463,7 +475,7 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
-
+    //open the dialog that allows the user to send a friend request
     private void openSendRequestDialog(AlertDialog parentDialog) {
         LayoutInflater inflater = LayoutInflater.from(this);
         View view = inflater.inflate(R.layout.dialog_send_friend_request, null, false);
@@ -516,6 +528,7 @@ public class SettingsActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    //load the pending friend requests
     private void loadFriendRequests(Runnable onDone) {
         incomingRequests.clear();
         outgoingRequests.clear();
@@ -566,6 +579,7 @@ public class SettingsActivity extends AppCompatActivity {
                 });
     }
 
+    //load the number of incoming requests
     private void loadFriendRequestCounts() {
         db.collection("users")
                 .document(currentUid)
@@ -583,6 +597,7 @@ public class SettingsActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> friendRequestBadge.setVisibility(View.GONE));
     }
 
+    //update the badge based on the number of incoming requests
     private void updateFriendRequestBadge() {
         int count = incomingRequests.size();
         if (count <= 0) {
@@ -593,6 +608,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    //send a friend request to the specified user
     private void sendFriendRequest(String targetUsername,
                                    Runnable onSuccess,
                                    java.util.function.Consumer<String> onError) {
@@ -663,6 +679,7 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
 
+    //adapter for incoming friend request in the dialog
     private class IncomingAdapter extends ArrayAdapter<FriendRequestItem> {
         IncomingAdapter(List<FriendRequestItem> items) {
             super(SettingsActivity.this, 0, items);
@@ -692,6 +709,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    //adapter for outgoing requests in the friends dialog
     private class OutgoingAdapter extends ArrayAdapter<FriendRequestItem> {
         OutgoingAdapter(List<FriendRequestItem> items) {
             super(SettingsActivity.this, 0, items);
@@ -718,6 +736,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
+    //accept an incoming request
     private void acceptRequest(FriendRequestItem item) {
         String otherUid = item.otherUid;
         String otherName = item.otherUsername;
@@ -768,6 +787,7 @@ public class SettingsActivity extends AppCompatActivity {
                                 Toast.LENGTH_SHORT).show());
     }
 
+    //deny a friend request
     private void denyRequest(FriendRequestItem item) {
         String otherUid = item.otherUid;
 
@@ -795,6 +815,7 @@ public class SettingsActivity extends AppCompatActivity {
                                 Toast.LENGTH_SHORT).show());
     }
 
+    //cancel a sent friend request
     private void cancelOutgoingRequest(FriendRequestItem item) {
         String otherUid = item.otherUid;
 
