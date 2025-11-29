@@ -66,16 +66,16 @@ public class CameraActivity extends AppCompatActivity {
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
 
-    // --- Connecting overlay views + animation ---
+    // Connecting overlay views + animation
     private View connectingOverlay;
     private ImageView overlayLogo;
     private TextView overlayStatusText;
     private ObjectAnimator logoPulseAnimator;
 
-    // --- Timeout handling for camera connection ---
+    // Timeout handling for camera connection
     private final Handler timeoutHandler = new Handler(Looper.getMainLooper());
     private Runnable connectTimeoutRunnable;
-    private boolean connectionDone = false; // guards against double-callback/timeout
+    private boolean connectionDone = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -127,7 +127,6 @@ public class CameraActivity extends AppCompatActivity {
 
         connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
 
-        // Android 13 test phone => we only use the modern path
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             Toast.makeText(this, "Requires Android 10 or higher", Toast.LENGTH_LONG).show();
             finish();
@@ -143,7 +142,6 @@ public class CameraActivity extends AppCompatActivity {
         }
     }
 
-    // ---- Permissions (Android 13) ----
     private boolean hasWifiPermissions() {
         boolean fine = ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
@@ -163,7 +161,6 @@ public class CameraActivity extends AppCompatActivity {
         );
     }
 
-    // ---- overlay helpers ----
     private void showConnectingOverlay() {
         if (connectingOverlay == null) return;
 
@@ -231,7 +228,7 @@ public class CameraActivity extends AppCompatActivity {
         }
     }
 
-    // ---- Connect to ESP AP (Android 10+) ----
+    // Connect to ESP
     @RequiresApi(29)
     private void connectToEspAp() {
         WifiNetworkSpecifier.Builder builder =
@@ -253,16 +250,14 @@ public class CameraActivity extends AppCompatActivity {
             return;
         }
 
-        // While connecting: disable shutter + show overlay
         shutterButton.setEnabled(false);
         showConnectingOverlay();
 
-        connectionDone = false; // new connection attempt
+        connectionDone = false;
 
         networkCallback = new ConnectivityManager.NetworkCallback() {
             @Override
             public void onAvailable(Network network) {
-                // If timeout already fired or we've already handled result, ignore.
                 if (connectionDone) return;
                 connectionDone = true;
                 cancelConnectTimeout();
@@ -282,7 +277,6 @@ public class CameraActivity extends AppCompatActivity {
                     webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
                     Toast.makeText(CameraActivity.this, "Connected to ESP Wi-Fi", Toast.LENGTH_SHORT).show();
 
-                    // Camera ready → enable shutter and hide overlay
                     shutterButton.setEnabled(true);
                     fadeOutConnectingOverlay();
                 });
@@ -305,9 +299,8 @@ public class CameraActivity extends AppCompatActivity {
 
         connectivityManager.requestNetwork(request, networkCallback);
 
-        // --- TIMEOUT: if no onAvailable within CONNECT_TIMEOUT_MS, go back to main ---
         connectTimeoutRunnable = () -> {
-            if (connectionDone) return; // already handled
+            if (connectionDone) return;
             connectionDone = true;
 
             try {
@@ -344,7 +337,7 @@ public class CameraActivity extends AppCompatActivity {
         espNetwork = null;
     }
 
-    // ---- Capture from ESP and upload ----
+    // Capture from ESP and upload
     private void captureFromEsp() {
         io.execute(() -> {
             try {
@@ -374,13 +367,12 @@ public class CameraActivity extends AppCompatActivity {
                 // Disconnect from ESP so phone can use its normal internet again
                 runOnUiThread(this::releaseEspNetwork);
 
-                // Give the phone a moment to switch back (mobile data / normal Wi-Fi)
+                // Give the phone a moment to switch back
                 Thread.sleep(2000);
 
                 uploadToFirebase(jpeg);
 
             } catch (Exception e) {
-                // NEW: small message + go home
                 runOnUiThread(() -> goHomeOnCaptureError("Please restart your camera"));
             }
         });
@@ -411,7 +403,7 @@ public class CameraActivity extends AppCompatActivity {
                     return ref.getDownloadUrl();
                 })
                 .addOnSuccessListener(uri -> {
-                    // Only go to DescriptionActivity – no Firestore write here
+                    // Only go to DescriptionActivity
                     Intent intent =
                             new Intent(CameraActivity.this, DescriptionActivity.class);
                     intent.putExtra("userRole", userRole);
@@ -426,16 +418,13 @@ public class CameraActivity extends AppCompatActivity {
                 });
     }
 
-    // ---- Capture error -> go home ----
     private void goHomeOnCaptureError(String message) {
         try {
             Toast.makeText(CameraActivity.this, message, Toast.LENGTH_SHORT).show();
         } catch (Exception ignored) {}
 
-        // stop any pending camera connect timeout
         cancelConnectTimeout();
 
-        // unbind from ESP/network if bound
         releaseEspNetwork();
 
         // navigate to MainActivity and finish this screen
@@ -445,7 +434,6 @@ public class CameraActivity extends AppCompatActivity {
         finish();
     }
 
-    // ---- Lifecycle ----
     @Override
     protected void onPause() {
         super.onPause();
@@ -468,7 +456,6 @@ public class CameraActivity extends AppCompatActivity {
         stopLogoPulse();
     }
 
-    // ---- Permission result ----
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String[] permissions,

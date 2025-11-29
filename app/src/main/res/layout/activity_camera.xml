@@ -7,7 +7,6 @@
     android:layout_height="match_parent"
     android:background="@drawable/profile_bg_gradient">
 
-    <!-- WebView fills space above the controls -->
     <WebView
         android:id="@+id/webView"
         android:layout_width="0dp"
@@ -18,7 +17,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Bottom control bar -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/controls"
         android:layout_width="0dp"
@@ -29,7 +27,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Back button on the left -->
         <ImageButton
             android:id="@+id/BackButton"
             android:layout_width="wrap_content"
@@ -43,7 +40,6 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Shutter button perfectly centered -->
         <ImageButton
             android:id="@+id/ShutterButton"
             android:layout_width="wrap_content"
@@ -58,7 +54,6 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Full-screen "connecting" overlay on top -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/cameraConnectingOverlay"
         android:layout_width="0dp"
@@ -72,7 +67,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- SureLeaf logo pulsing in the center -->
         <ImageView
             android:id="@+id/cameraOverlayLogo"
             android:layout_width="120dp"
@@ -84,7 +78,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- Status text below the logo -->
         <TextView
             android:id="@+id/cameraOverlayStatusText"
             android:layout_width="wrap_content"

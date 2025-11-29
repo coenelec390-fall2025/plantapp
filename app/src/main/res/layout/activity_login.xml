@@ -10,7 +10,6 @@
     android:background="@drawable/profile_bg_gradient"
     tools:context=".LoginActivity">
 
-    <!-- Card container (reuses the same style as profile card) -->
     <LinearLayout
         android:id="@+id/loginCard"
         android:layout_width="match_parent"

@@ -12,7 +12,6 @@
     android:background="@drawable/profile_bg_gradient"
     tools:context=".SettingsActivity">
 
-    <!-- Top bar row: Back + Title + Friends button with badge -->
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="match_parent"
@@ -41,7 +40,6 @@
             android:textSize="28sp"
             android:textStyle="bold" />
 
-        <!-- Friends button wrapped so we can overlay a badge -->
         <FrameLayout
             android:layout_width="40dp"
             android:layout_height="40dp">
@@ -77,7 +75,6 @@
         </FrameLayout>
     </LinearLayout>
 
-    <!-- Card container for the content -->
     <LinearLayout
         android:id="@+id/profileCard"
         android:layout_width="match_parent"
@@ -130,7 +127,6 @@
             android:progressDrawable="@drawable/green_progress_bg"
             android:layout_marginBottom="16dp" />
 
-        <!-- Plant History section -->
         <TextView
             android:id="@+id/PlantHistoryTitle"
             android:layout_width="wrap_content"
@@ -141,7 +137,6 @@
             android:textSize="18sp"
             android:layout_marginBottom="6dp" />
 
-        <!-- EMPTY VIEW for history -->
         <TextView
             android:id="@+id/historyEmptyText"
             android:layout_width="match_parent"
@@ -165,7 +160,6 @@
             android:dividerHeight="1dp"
             android:scrollbars="vertical" />
 
-        <!-- Friends section under plant history -->
         <TextView
             android:id="@+id/FriendsTitle"
             android:layout_width="wrap_content"
@@ -177,7 +171,6 @@
             android:layout_marginTop="12dp"
             android:layout_marginBottom="6dp" />
 
-        <!-- EMPTY VIEW for friends -->
         <TextView
             android:id="@+id/friendsEmptyText"
             android:layout_width="match_parent"
@@ -202,7 +195,6 @@
 
     </LinearLayout>
 
-    <!-- Bottom buttons -->
     <Button
         android:id="@+id/ClearHistoryButton"
         android:layout_width="match_parent"

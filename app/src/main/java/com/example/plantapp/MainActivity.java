@@ -183,13 +183,7 @@ public class MainActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    // ---------- MY GARDEN ----------
 
-    /** Load up to 20 recent plant images into the horizontal "My Garden" strip. */
-    // ---------- MY GARDEN ----------
-
-    /** Load up to 20 recent HIGH-CONFIDENCE plant images into the horizontal "My Garden" strip. */
-    /** Load up to 20 recent HIGH-CONFIDENCE plant images into the horizontal "My Garden" strip. */
     private void loadGardenThumbnails() {
         FirebaseUser user = mAuth.getCurrentUser();
         if (user == null) {
@@ -204,7 +198,7 @@ public class MainActivity extends AppCompatActivity {
                 .document(uid)
                 .collection("captures")
                 .orderBy("timestamp", Query.Direction.DESCENDING)
-                .limit(50) // fetch a bit more so we have a better chance of finding 20 with ≥ 50% confidence
+                .limit(50)
                 .get()
                 .addOnSuccessListener(querySnapshot -> {
                     gardenStripLayout.removeAllViews();
@@ -222,7 +216,7 @@ public class MainActivity extends AppCompatActivity {
                         Long confLong = doc.getLong("confidence");
                         int confidence = (confLong != null) ? confLong.intValue() : 0;
 
-                        // ⭐ Only show plants with confidence >= 50
+                        // Only show plants with confidence >= 50
                         if (confidence < 50) continue;
 
                         String docId          = doc.getId();
@@ -249,7 +243,6 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     if (added == 0) {
-                        // there were captures, but none with confidence >= 50
                         gardenEmptyText.setVisibility(View.VISIBLE);
                     } else {
                         gardenEmptyText.setVisibility(View.GONE);
@@ -263,9 +256,6 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-    /** Add a single thumbnail ImageView for the given storage URL. */
-    /** Add a single thumbnail ImageView for the given storage URL. */
-    /** Add a single thumbnail ImageView for the given storage URL. */
     private void addGardenThumbnail(String docId,
                                     String imageUrl,
                                     String role,
@@ -274,23 +264,19 @@ public class MainActivity extends AppCompatActivity {
                                     String description,
                                     int confidence,
                                     String dateTime) {
-        // Outer frame that shows the green outline
         FrameLayout frame = new FrameLayout(this);
 
-        int size = dpToPx(225); // same size as before
+        int size = dpToPx(225);
         LinearLayout.LayoutParams frameLp =
                 new LinearLayout.LayoutParams(size, size);
-        frameLp.setMargins(0, 0, dpToPx(8), 0); // right spacing between thumbnails
+        frameLp.setMargins(0, 0, dpToPx(8), 0);
         frame.setLayoutParams(frameLp);
 
-        // Green outline/background on the frame
         frame.setBackgroundResource(R.drawable.history_item_bg);
 
-        // Padding so the image sits inside the outline
         int innerPad = dpToPx(4);
         frame.setPadding(innerPad, innerPad, innerPad, innerPad);
 
-        // Actual image view
         ImageView iv = new ImageView(this);
         FrameLayout.LayoutParams ivLp =
                 new FrameLayout.LayoutParams(
@@ -300,17 +286,14 @@ public class MainActivity extends AppCompatActivity {
         iv.setLayoutParams(ivLp);
         iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
 
-        // Rounded-corner background used as a clipping mask
         iv.setBackgroundResource(R.drawable.garden_thumb_rounded_bg);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             iv.setClipToOutline(true);
         }
 
-        // Add the ImageView inside the frame
         frame.addView(iv);
         gardenStripLayout.addView(frame);
 
-        // ✅ Click → open HistoryDescriptionActivity for this plant
         frame.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, HistoryDescriptionActivity.class);
             intent.putExtra("docId", docId);
@@ -328,7 +311,7 @@ public class MainActivity extends AppCompatActivity {
         // Load image from Firebase Storage into the ImageView
         try {
             StorageReference ref = FirebaseStorage.getInstance().getReferenceFromUrl(imageUrl);
-            final long MAX = 1024L * 1024L; // 1 MB per thumbnail
+            final long MAX = 1024L * 1024L;
 
             ref.getBytes(MAX)
                     .addOnSuccessListener(bytes -> {
@@ -338,7 +321,6 @@ public class MainActivity extends AppCompatActivity {
                         }
                     })
                     .addOnFailureListener(e -> {
-                        // silently ignore failure for this one
                     });
         } catch (Exception e) {
             // invalid URL - ignore this thumbnail
@@ -353,7 +335,6 @@ public class MainActivity extends AppCompatActivity {
         return Math.round(dp * density);
     }
 
-    // ---------- ROLE LOADING / SAVING ----------
 
     // load role stored in firebase
     private void loadRoleFromFirestore() {

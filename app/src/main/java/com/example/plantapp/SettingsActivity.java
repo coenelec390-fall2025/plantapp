@@ -48,7 +48,6 @@ public class SettingsActivity extends AppCompatActivity {
     private ListView friendsListView;
     private TextView friendRequestBadge;
 
-    // NEW: empty-state views
     private TextView historyEmptyText;
     private TextView friendsEmptyText;
 
@@ -70,9 +69,8 @@ public class SettingsActivity extends AppCompatActivity {
     private FirebaseFirestore db;
 
     private String currentUid;
-    private String currentUsername;   // for “you can’t add yourself” check
+    private String currentUsername;
 
-    // Firestore subcollection names
     private static final String SUB_FRIENDS = "friends";
     private static final String SUB_REQ_IN = "friendRequestsIncoming";
     private static final String SUB_REQ_OUT = "friendRequestsOutgoing";
@@ -102,7 +100,6 @@ public class SettingsActivity extends AppCompatActivity {
             return insets;
         });
 
-        // top bar
         ImageButton backButton = findViewById(R.id.BackButton);
         backButton.setOnClickListener(v -> {
             startActivity(new Intent(this, MainActivity.class));
@@ -112,7 +109,6 @@ public class SettingsActivity extends AppCompatActivity {
         ImageButton addFriendButton = findViewById(R.id.AddFriendButton);
         addFriendButton.setOnClickListener(v -> openFriendsDialog());
 
-        // main views
         usernameDisplay    = findViewById(R.id.UsernameDisplay);
         plantCounterText   = findViewById(R.id.PlantCounterText);
         plantRankingText   = findViewById(R.id.PlantRankingText);
@@ -121,11 +117,9 @@ public class SettingsActivity extends AppCompatActivity {
         friendsListView    = findViewById(R.id.friendsListView);
         friendRequestBadge = findViewById(R.id.friendRequestBadge);
 
-        // NEW: empty-state views
         historyEmptyText   = findViewById(R.id.historyEmptyText);
         friendsEmptyText   = findViewById(R.id.friendsEmptyText);
 
-        // wire empty views to their lists
         historyListView.setEmptyView(historyEmptyText);
         friendsListView.setEmptyView(friendsEmptyText);
 
@@ -142,14 +136,12 @@ public class SettingsActivity extends AppCompatActivity {
         Button clearHistoryBtn = findViewById(R.id.ClearHistoryButton);
         clearHistoryBtn.setOnClickListener(v -> clearHistory());
 
-        // adapters
         historyAdapter = new HistoryAdapter(historyItems);
         historyListView.setAdapter(historyAdapter);
 
         friendAdapter = new FriendAdapter(friendItems);
         friendsListView.setAdapter(friendAdapter);
 
-        // load header info
         loadUsername();
     }
 
@@ -162,9 +154,6 @@ public class SettingsActivity extends AppCompatActivity {
         loadFriendRequestCounts();   // updates badge
     }
 
-    // ------------------------------------------------------------------
-    // USERNAME
-    // ------------------------------------------------------------------
     private void loadUsername() {
         db.collection("users").document(currentUid).get()
                 .addOnSuccessListener(doc -> {
@@ -181,9 +170,6 @@ public class SettingsActivity extends AppCompatActivity {
                 });
     }
 
-    // ------------------------------------------------------------------
-    // HISTORY
-    // ------------------------------------------------------------------
     private void loadHistory() {
         db.collection("users")
                 .document(currentUid)
@@ -344,7 +330,6 @@ public class SettingsActivity extends AppCompatActivity {
                     intent.putExtra("description", item.description);
                     intent.putExtra("confidence", item.confidence);
                     intent.putExtra("dateTime", item.dateTime);
-                    // owner → can delete
                     intent.putExtra("allowDelete", true);
                     startActivity(intent);
                 });
@@ -364,9 +349,6 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    // ------------------------------------------------------------------
-    // FRIENDS LIST (BOTTOM)
-    // ------------------------------------------------------------------
     private static class FriendItem {
         final String friendUid;
         final String friendUsername;
@@ -437,11 +419,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    // ------------------------------------------------------------------
-    // FRIEND REQUEST POPUP
-    // ------------------------------------------------------------------
 
-    /** Item for incoming/outgoing lists. */
     private static class FriendRequestItem {
         final String otherUid;
         final String otherUsername;
@@ -474,12 +452,10 @@ public class SettingsActivity extends AppCompatActivity {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
 
-        // open username popup
         openSendRequestBtn.setOnClickListener(v -> openSendRequestDialog(dialog));
 
         dialog.show();
 
-        // Load requests after showing so adapters are ready
         loadFriendRequests(() -> {
             incomingAdapter.notifyDataSetChanged();
             outgoingAdapter.notifyDataSetChanged();
@@ -525,7 +501,6 @@ public class SettingsActivity extends AppCompatActivity {
             sendFriendRequest(targetName,
                     () -> {
                         dialog.dismiss();
-                        // refresh lists in parent popup
                         loadFriendRequests(() -> {
                             incomingAdapter.notifyDataSetChanged();
                             outgoingAdapter.notifyDataSetChanged();
@@ -541,12 +516,10 @@ public class SettingsActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    /** Load all incoming/outgoing requests once. */
     private void loadFriendRequests(Runnable onDone) {
         incomingRequests.clear();
         outgoingRequests.clear();
 
-        // incoming
         db.collection("users")
                 .document(currentUid)
                 .collection(SUB_REQ_IN)
@@ -561,7 +534,6 @@ public class SettingsActivity extends AppCompatActivity {
                                 fromUsername != null ? fromUsername : fromUid
                         ));
                     }
-                    // outgoing (inside success so both done before onDone)
                     db.collection("users")
                             .document(currentUid)
                             .collection(SUB_REQ_OUT)
@@ -621,11 +593,9 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    /** Actually send a friend request given a username. */
     private void sendFriendRequest(String targetUsername,
                                    Runnable onSuccess,
                                    java.util.function.Consumer<String> onError) {
-        // 1) look up that username
         db.collection("users")
                 .whereEqualTo("username", targetUsername)
                 .limit(1)
@@ -639,13 +609,11 @@ public class SettingsActivity extends AppCompatActivity {
                     String targetUid = qs.getDocuments().get(0).getId();
                     String targetName = qs.getDocuments().get(0).getString("username");
 
-                    // extra safety
                     if (targetUid.equals(currentUid)) {
                         onError.accept("You cannot send a request to yourself");
                         return;
                     }
 
-                    // 2) check not already a friend
                     db.collection("users")
                             .document(currentUid)
                             .collection(SUB_FRIENDS)
@@ -657,7 +625,6 @@ public class SettingsActivity extends AppCompatActivity {
                                     return;
                                 }
 
-                                // 3) create symmetrical request docs (id = other UID)
                                 DocumentReference myOutRef = db.collection("users")
                                         .document(currentUid)
                                         .collection(SUB_REQ_OUT)
@@ -695,7 +662,6 @@ public class SettingsActivity extends AppCompatActivity {
                         onError.accept("Failed to search user: " + e.getMessage()));
     }
 
-    // ----- incoming / outgoing list adapters -----
 
     private class IncomingAdapter extends ArrayAdapter<FriendRequestItem> {
         IncomingAdapter(List<FriendRequestItem> items) {
@@ -756,7 +722,6 @@ public class SettingsActivity extends AppCompatActivity {
         String otherUid = item.otherUid;
         String otherName = item.otherUsername;
 
-        // add friends both sides
         Map<String, Object> meFriend = new HashMap<>();
         meFriend.put("friendUid", otherUid);
         meFriend.put("friendUsername", otherName);
@@ -775,7 +740,6 @@ public class SettingsActivity extends AppCompatActivity {
                 .collection(SUB_FRIENDS)
                 .document(currentUid);
 
-        // remove requests both sides (incoming for me, outgoing for them)
         DocumentReference myIncomingRef = db.collection("users")
                 .document(currentUid)
                 .collection(SUB_REQ_IN)
@@ -794,11 +758,10 @@ public class SettingsActivity extends AppCompatActivity {
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(this, "Friend added", Toast.LENGTH_SHORT).show();
 
-                    // update local lists + UI
                     incomingRequests.remove(item);
                     incomingAdapter.notifyDataSetChanged();
                     updateFriendRequestBadge();
-                    loadFriends(); // refresh bottom list
+                    loadFriends();
                 })
                 .addOnFailureListener(e ->
                         Toast.makeText(this, "Failed to accept: " + e.getMessage(),

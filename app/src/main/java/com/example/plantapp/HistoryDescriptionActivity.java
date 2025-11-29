@@ -52,14 +52,12 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_history_description);
 
-        // Insets
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(sys.left, sys.top + 40, sys.right, sys.bottom);
             return insets;
         });
 
-        // Bind views
         plantTitleTv        = findViewById(R.id.PlantTitle);
         backBtn             = findViewById(R.id.BackButton);
         plantImageView      = findViewById(R.id.PlantImageView);
@@ -70,7 +68,6 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         confidenceBar       = findViewById(R.id.ConfidenceBar);
         deleteFromHistoryBtn= findViewById(R.id.DeleteFromHistoryButton);
 
-        // Read extras from intent
         Intent intent = getIntent();
         docId          = intent.getStringExtra("docId");
         userRole       = intent.getStringExtra("userRole");
@@ -86,7 +83,6 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
             userRole = "Hiker";
         }
 
-        // Title: "Previous Capture\n<date> · <role>"
         if (plantTitleTv != null) {
             if (dateTime != null && !dateTime.isEmpty()) {
                 plantTitleTv.setText("Previous Capture\n" + dateTime + " · " + userRole);
@@ -95,20 +91,17 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
             }
         }
 
-        // Fill simple text fields
         commonNameTv.setText(
                 (commonName != null && !commonName.isEmpty()) ? commonName : "Unknown plant"
         );
         scientificNameTv.setText(scientificName != null ? scientificName : "");
         descriptionTv.setText(description != null ? description : "No description available.");
 
-        // Confidence UI like DescriptionActivity
         confidenceBar.setMax(100);
         confidenceBar.setProgress(confidence);
         confidenceTv.setText("Confidence: " + confidence + "%");
         applyConfidenceColor(confidence);
 
-        // Load image from Storage
         if (imageUrl != null && !imageUrl.trim().isEmpty()) {
             try {
                 StorageReference ref = FirebaseStorage.getInstance().getReferenceFromUrl(imageUrl);
@@ -129,10 +122,8 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
             }
         }
 
-        // Back to profile (or previous screen)
         backBtn.setOnClickListener(v -> finish());
 
-        // Delete from history (only if allowed & docId present)
         if (!allowDelete || docId == null || docId.isEmpty()) {
             deleteFromHistoryBtn.setVisibility(View.GONE);
         } else {
@@ -141,12 +132,7 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Match the confidence color behavior from DescriptionActivity.
-     * >80  → green
-     * 50-80 → yellow
-     * <50  → red
-     */
+
     private void applyConfidenceColor(int score) {
         int resId;
         if (score > 80) {
@@ -157,15 +143,10 @@ public class HistoryDescriptionActivity extends AppCompatActivity {
             resId = R.drawable.progress_red;
         }
 
-        // swap the progress drawable
         confidenceBar.setProgressDrawable(ContextCompat.getDrawable(this, resId));
-        // force invalidate
         confidenceBar.setProgress(confidenceBar.getProgress());
     }
 
-    /**
-     * Deletes this capture document from Firestore, then closes the screen.
-     */
     private void deleteCaptureFromHistory() {
         if (docId == null || docId.isEmpty()) {
             Toast.makeText(this, "Missing capture ID", Toast.LENGTH_SHORT).show();

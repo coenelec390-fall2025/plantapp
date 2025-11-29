@@ -56,7 +56,6 @@ public class FriendProfileActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_friend_profile);
 
-        // Get extras from intent
         friendUid = getIntent().getStringExtra("friendUid");
         friendUsername = getIntent().getStringExtra("friendUsername");
 
@@ -66,7 +65,6 @@ public class FriendProfileActivity extends AppCompatActivity {
             return;
         }
 
-        // Insets using your root ID
         View root = findViewById(R.id.friendProfileRoot);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -74,7 +72,6 @@ public class FriendProfileActivity extends AppCompatActivity {
             return insets;
         });
 
-        // Link views
         backBtn              = findViewById(R.id.FriendBackButton);
         friendUsernameTv     = findViewById(R.id.FriendUsernameDisplay);
         friendCounterTv      = findViewById(R.id.FriendPlantCounterText);
@@ -90,17 +87,14 @@ public class FriendProfileActivity extends AppCompatActivity {
 
         backBtn.setOnClickListener(v -> finish());
 
-        // Remove friend button
         removeFriendBtn.setOnClickListener(v -> removeFriend());
 
-        // List + adapter for friend history
         friendHistoryAdapter = new FriendHistoryAdapter(friendHistoryItems);
         friendHistoryListView.setAdapter(friendHistoryAdapter);
 
         loadFriendHistory();
     }
 
-    /** Load this friend's captures from Firestore. */
     private void loadFriendHistory() {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
@@ -151,7 +145,6 @@ public class FriendProfileActivity extends AppCompatActivity {
                                 Toast.LENGTH_SHORT).show());
     }
 
-    /** Same rank logic as your own profile, but for friend. */
     private void updateFriendStats(int count) {
         friendCounterTv.setText("They've identified " + count + " plants!");
 
@@ -183,7 +176,6 @@ public class FriendProfileActivity extends AppCompatActivity {
         friendRankBar.setProgress(progress);
     }
 
-    /** Remove this friend from both users' friends lists. */
     private void removeFriend() {
         FirebaseUser current = FirebaseAuth.getInstance().getCurrentUser();
         if (current == null) {
@@ -196,8 +188,6 @@ public class FriendProfileActivity extends AppCompatActivity {
 
         removeFriendBtn.setEnabled(false);
 
-        // assume friends are stored as:
-        // users/{uid}/friends/{friendUid}
         Task<Void> t1 = db.collection("users")
                 .document(currentUid)
                 .collection("friends")
@@ -213,7 +203,7 @@ public class FriendProfileActivity extends AppCompatActivity {
         Tasks.whenAll(t1, t2)
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(this, "Friend removed", Toast.LENGTH_SHORT).show();
-                    finish(); // go back to settings, where list will refresh
+                    finish();
                 })
                 .addOnFailureListener(e -> {
                     removeFriendBtn.setEnabled(true);
@@ -223,7 +213,6 @@ public class FriendProfileActivity extends AppCompatActivity {
                 });
     }
 
-    /** Model for a capture (same as in SettingsActivity). */
     private static class PlantCapture {
         final String docId;
         final String imageUrl;
@@ -256,7 +245,6 @@ public class FriendProfileActivity extends AppCompatActivity {
         }
     }
 
-    /** Adapter: "Poison ivy · Hiker" left, "yyyy/MM/dd HH:mm" right. */
     private class FriendHistoryAdapter extends ArrayAdapter<PlantCapture> {
 
         private final LayoutInflater inflater = LayoutInflater.from(FriendProfileActivity.this);
@@ -286,13 +274,10 @@ public class FriendProfileActivity extends AppCompatActivity {
                         ? item.role
                         : "Unknown Role";
 
-                // Left: "Poison ivy · Hiker"
                 titleTv.setText(name + " · " + role);
 
-                // Right: yyyy/MM/dd HH:mm (24h)
                 dateTv.setText(formatDate(item));
 
-                // Clicking opens HistoryDescriptionActivity with allowDelete = false
                 row.setOnClickListener(v -> {
                     Intent intent = new Intent(FriendProfileActivity.this, HistoryDescriptionActivity.class);
                     intent.putExtra("docId", item.docId);
@@ -303,7 +288,7 @@ public class FriendProfileActivity extends AppCompatActivity {
                     intent.putExtra("description", item.description);
                     intent.putExtra("confidence", item.confidence);
                     intent.putExtra("dateTime", item.dateTime);
-                    intent.putExtra("allowDelete", false); // cannot delete friend history
+                    intent.putExtra("allowDelete", false);
                     startActivity(intent);
                 });
 

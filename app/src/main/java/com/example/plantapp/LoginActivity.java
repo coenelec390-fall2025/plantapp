@@ -54,16 +54,14 @@ public class LoginActivity extends AppCompatActivity {
         tvForgotPassword.setOnClickListener(v -> showForgotPasswordDialog());
     }
 
-    /** Show a dialog with its own email field + reset button. */
     private void showForgotPasswordDialog() {
-        // Inflate custom layout
+
         android.view.LayoutInflater inflater = android.view.LayoutInflater.from(this);
         android.view.View dialogView = inflater.inflate(R.layout.dialog_forgot_password, null, false);
 
         EditText emailInput = dialogView.findViewById(R.id.editTextDialogEmail);
         Button resetBtn     = dialogView.findViewById(R.id.buttonDialogReset);
 
-        // Prefill with whatever is already typed in the main email field
         String currentEmail = etEmail.getText().toString().trim();
         if (!TextUtils.isEmpty(currentEmail)) {
             emailInput.setText(currentEmail);

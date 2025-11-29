@@ -10,7 +10,6 @@
     android:background="@drawable/profile_bg_gradient"
     tools:context=".SignupActivity">
 
-    <!-- Card container -->
     <LinearLayout
         android:id="@+id/signupCard"
         android:layout_width="match_parent"

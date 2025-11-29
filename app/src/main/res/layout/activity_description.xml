@@ -8,14 +8,12 @@
     android:background="@drawable/profile_bg_gradient"
     tools:context=".DescriptionActivity">
 
-    <!-- Original scrollable content -->
     <ScrollView
         android:id="@+id/main"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fitsSystemWindows="true">
 
-        <!-- Outer container to center content and keep clean margins -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -23,7 +21,6 @@
             android:gravity="center"
             android:padding="16dp">
 
-            <!-- Constrained content width -->
             <LinearLayout
                 android:id="@+id/ContentWrapper"
                 android:layout_width="match_parent"
@@ -32,7 +29,6 @@
                 android:gravity="center_horizontal"
                 android:padding="0dp">
 
-                <!-- Top bar -->
                 <RelativeLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -64,7 +60,6 @@
                         android:gravity="center" />
                 </RelativeLayout>
 
-                <!-- Image card -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -85,7 +80,6 @@
                         android:scaleType="centerCrop" />
                 </LinearLayout>
 
-                <!-- Names + confidence card -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -119,7 +113,6 @@
                         android:gravity="center"
                         android:layout_marginBottom="10dp" />
 
-                    <!-- Confidence row -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -152,7 +145,6 @@
                     </LinearLayout>
                 </LinearLayout>
 
-                <!-- Description card -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -172,7 +164,6 @@
                         android:lineSpacingExtra="4dp" />
                 </LinearLayout>
 
-                <!-- Primary action -->
                 <Button
                     android:id="@+id/TakeAnotherPictureButton"
                     android:layout_width="match_parent"
@@ -194,7 +185,6 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- New identifying overlay on top -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/identificationOverlay"
         android:layout_width="match_parent"
@@ -204,7 +194,6 @@
         android:focusable="true"
         android:visibility="visible">
 
-        <!-- Pulsing SureLeaf logo -->
         <ImageView
             android:id="@+id/overlayLogo"
             android:layout_width="120dp"
@@ -216,7 +205,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- Status icon (check / warning / question) -->
         <ImageView
             android:id="@+id/overlayStatusIcon"
             android:layout_width="80dp"
@@ -228,7 +216,6 @@
             app:layout_constraintStart_toStartOf="@+id/overlayLogo"
             app:layout_constraintEnd_toEndOf="@+id/overlayLogo" />
 
-        <!-- Status text -->
         <TextView
             android:id="@+id/overlayStatusText"
             android:layout_width="wrap_content"

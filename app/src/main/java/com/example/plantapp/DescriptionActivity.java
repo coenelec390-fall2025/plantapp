@@ -34,7 +34,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 
-// Firebase AI (Gemini)
 import com.google.firebase.ai.FirebaseAI;
 import com.google.firebase.ai.GenerativeModel;
 import com.google.firebase.ai.java.GenerativeModelFutures;
@@ -42,7 +41,6 @@ import com.google.firebase.ai.type.Content;
 import com.google.firebase.ai.type.GenerateContentResponse;
 import com.google.firebase.ai.type.GenerativeBackend;
 
-// Firebase Auth/Firestore/Storage
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
@@ -76,14 +74,12 @@ public class DescriptionActivity extends AppCompatActivity {
     private String commonName      = "";
     private int confidenceScore    = 0;
 
-    // final description that includes alternates etc.
     private String finalDescriptionText = "";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Runnable loadingRunnable = null;
     private boolean loading = false;
 
-    // wait for: description + scientific + common + confidence + alternates
     private final AtomicInteger pending = new AtomicInteger(5);
     private final AtomicBoolean savedOnce = new AtomicBoolean(false);
 
@@ -91,7 +87,6 @@ public class DescriptionActivity extends AppCompatActivity {
     private String imageUrl;
     private Bitmap imageBitmap;
 
-    // alternates model + list
     static class Candidate {
         final String commonName, scientificName;
         final int confidence;
@@ -99,7 +94,6 @@ public class DescriptionActivity extends AppCompatActivity {
     }
     private final List<Candidate> alternates = new ArrayList<>();
 
-    // ===== Overlay views / animation =====
     private View identificationOverlay;
     private ImageView overlayLogo;
     private ImageView overlayStatusIcon;
@@ -112,7 +106,6 @@ public class DescriptionActivity extends AppCompatActivity {
         UNKNOWN
     }
 
-    // ===== Expanded leak guards =====
     private static final Pattern LEAK_HEAD = Pattern.compile(
             "^(?:\\s*(?i:(THOUGHTS?|THOUGHT|ANALYSIS|ANALYZE|REASONING|REASON|THINKING|THINK|PLAN|REFLECTION|CHAIN[- ]?OF[- ]?THOUGHT))\\s*:?\\b.*\\R)+",
             Pattern.DOTALL);
@@ -120,12 +113,10 @@ public class DescriptionActivity extends AppCompatActivity {
             "(?m)^(?i:(THOUGHTS?|THOUGHT|ANALYSIS|ANALYZE|REASONING|REASON|THINKING|THINK|PLAN|REFLECTION|CHAIN[- ]?OF[- ]?THOUGHT))\\s*:?\\b.*\\R?");
     private static final Pattern LETS_THINK = Pattern.compile("(?i)\\b(let'?s\\s+think|step\\s+by\\s+step)\\b.*");
 
-    // ===== Instruction-echo filter =====
     private static final Pattern INSTRUCTION_ECHO_LINES = Pattern.compile(
             "(?mi)^(?:do\\s*not\\s*include.*|never\\s*output.*|plain\\s*text\\s*only.*|respond\\s*with\\s*only.*|no\\s*prose.*|no\\s*code\\s*fences.*)\\s*$"
     );
 
-    // ===== Allow-list + hard strip for names =====
     private static final Pattern NAME_ALLOW = Pattern.compile("^[A-Za-z][A-Za-z .'-]{0,63}$");
 
     private String stripThoughtPreamble(String s) {
@@ -172,7 +163,6 @@ public class DescriptionActivity extends AppCompatActivity {
 
     private interface OnText { void accept(String text); }
 
-    // Retry wrapper
     private void generateTextWithRetry(GenerativeModelFutures model, Content content, int maxRetries, OnText onText) {
         Executor cb = MoreExecutors.directExecutor();
         ListenableFuture<GenerateContentResponse> fut = model.generateContent(content);
@@ -222,7 +212,6 @@ public class DescriptionActivity extends AppCompatActivity {
         plantTitle        = findViewById(R.id.PlantTitle);
         plantImageView    = findViewById(R.id.PlantImageView);
 
-        // Overlay views
         identificationOverlay = findViewById(R.id.identificationOverlay);
         overlayLogo           = findViewById(R.id.overlayLogo);
         overlayStatusIcon     = findViewById(R.id.overlayStatusIcon);
@@ -248,10 +237,8 @@ public class DescriptionActivity extends AppCompatActivity {
         confidenceBar.setVisibility(View.GONE);
         confidenceBar.setProgress(0);
 
-        // Show overlay + start pulsing logo
         showIdentificationOverlay();
 
-        // Underlay "Loading..." text
         startLoadingDots(commonNameTv, "Loading");
 
         downloadImageAndRunGemini(imageUrl, userRole);
@@ -279,7 +266,6 @@ public class DescriptionActivity extends AppCompatActivity {
                     .generativeModel("gemini-2.5-flash");
             GenerativeModelFutures model = GenerativeModelFutures.from(ai);
 
-            // 1) Description
             String descPromptText =
                     buildRolePromptNoFormatting(role, "this plant") +
                             " Never output lines starting with THOUGHT:, THOUGHTS:, ANALYSIS:, REASONING:, or similar. Do not include meta text.";
@@ -292,7 +278,6 @@ public class DescriptionActivity extends AppCompatActivity {
                 maybeDeliverAll();
             });
 
-            // 2) Scientific name
             Content sciContent = new Content.Builder()
                     .addImage(imageBitmap)
                     .addText(
@@ -307,7 +292,6 @@ public class DescriptionActivity extends AppCompatActivity {
                 maybeDeliverAll();
             });
 
-            // 3) Common name — STRICT JSON
             Content commonContent = new Content.Builder()
                     .addImage(imageBitmap)
                     .addText(
@@ -323,7 +307,6 @@ public class DescriptionActivity extends AppCompatActivity {
                 maybeDeliverAll();
             });
 
-            // 4) Confidence
             Content confContent = new Content.Builder()
                     .addImage(imageBitmap)
                     .addText(
@@ -337,7 +320,6 @@ public class DescriptionActivity extends AppCompatActivity {
                 maybeDeliverAll();
             });
 
-            // 5) Alternates
             Content altsContent = new Content.Builder()
                     .addImage(imageBitmap)
                     .addText(
@@ -364,7 +346,7 @@ public class DescriptionActivity extends AppCompatActivity {
         });
     }
 
-    // ---------- role prompt ----------
+    // prompts
     private String buildRolePromptNoFormatting(String roleRaw, String plantNameHint) {
         String role = (roleRaw == null) ? "" : roleRaw.trim().toLowerCase();
         String baseRule =
@@ -391,7 +373,6 @@ public class DescriptionActivity extends AppCompatActivity {
         }
     }
 
-    // ---------- deliver & UI ----------
     private void maybeDeliverAll() {
         if (pending.decrementAndGet() == 0) {
             runOnUiThread(() -> {
@@ -411,10 +392,8 @@ public class DescriptionActivity extends AppCompatActivity {
                     }
                 }
 
-                // store final version (for saving to history)
                 finalDescriptionText = formattedDescription;
 
-                // Last safety net on names
                 commonName = stripInstructionEcho(commonName);
                 scientificName = stripInstructionEcho(scientificName);
                 if (startsWithLeak(commonName)) commonName = "Unknown plant";
@@ -430,11 +409,9 @@ public class DescriptionActivity extends AppCompatActivity {
                 confidenceTv.setText("Confidence: " + confidenceScore + "%");
                 applyConfidenceColor(confidenceScore);
 
-                // ====== TOXIC / NON-PLANT HEURISTICS (more conservative) ======
                 String descLower = formattedDescription.toLowerCase(Locale.ROOT);
                 String nameLower = commonName.toLowerCase(Locale.ROOT);
 
-                // Non-plant detection
                 boolean isNonPlant =
                         descLower.contains("not a plant") ||
                                 descLower.contains("no plant") ||
@@ -442,7 +419,6 @@ public class DescriptionActivity extends AppCompatActivity {
                                 descLower.contains("this image does not show a plant") ||
                                 commonName.equalsIgnoreCase("unknown plant");
 
-                // Toxic detection – stricter, and ignores "non-toxic"/"not toxic"
                 boolean mentionsNonToxic =
                         descLower.contains("non-toxic") ||
                                 descLower.contains("non toxic") ||
@@ -454,7 +430,6 @@ public class DescriptionActivity extends AppCompatActivity {
 
                 boolean isToxic = false;
                 if (!mentionsNonToxic) {
-                    // Strong phrases like "is toxic", "are poisonous", etc.
                     Pattern toxicPattern = Pattern.compile(
                             "\\b(is|are|can be|may be|considered|generally|often)\\s+(highly\\s+)?(toxic|poisonous|venomous)\\b",
                             Pattern.CASE_INSENSITIVE
@@ -464,7 +439,6 @@ public class DescriptionActivity extends AppCompatActivity {
                         isToxic = true;
                     }
 
-                    // Some direct patterns
                     if (!isToxic) {
                         String dl = descLower;
                         if (dl.contains("highly toxic plant") ||
@@ -477,11 +451,6 @@ public class DescriptionActivity extends AppCompatActivity {
                     }
                 }
 
-                // Decide overlay result:
-                // - Non-plant → UNKNOWN (grey question mark)
-                // - Toxic → WARNING (red alert)
-                // - Confident + not toxic + not non-plant → IDENTIFIED_OK (spin + pop)
-                // - Otherwise → UNKNOWN
                 IdentificationResult result;
                 if (isNonPlant) {
                     result = IdentificationResult.UNKNOWN;
@@ -540,7 +509,6 @@ public class DescriptionActivity extends AppCompatActivity {
                         Toast.makeText(this, "Failed to save history: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
-    // ---------- overlay helpers ----------
     private void showIdentificationOverlay() {
         if (identificationOverlay == null) return;
 
@@ -597,7 +565,6 @@ public class DescriptionActivity extends AppCompatActivity {
 
         stopLogoPulse();
 
-        // SUCCESS: spin + pop the SureLeaf logo, no checkmark icon
         if (result == IdentificationResult.IDENTIFIED_OK) {
             if (overlayStatusText != null) {
                 overlayStatusText.setText("Plant identified!");
@@ -610,18 +577,17 @@ public class DescriptionActivity extends AppCompatActivity {
             return;
         }
 
-        // WARNING or UNKNOWN → use icon overlay
         int iconRes;
         int tintColor;
         String statusText;
 
         if (result == IdentificationResult.WARNING) {
             iconRes = android.R.drawable.ic_dialog_alert;
-            tintColor = 0xFFF44336; // red
+            tintColor = 0xFFF44336;
             statusText = "Toxic plant detected";
-        } else { // UNKNOWN
+        } else {
             iconRes = android.R.drawable.ic_menu_help;
-            tintColor = 0xFF9E9E9E; // grey
+            tintColor = 0xFF9E9E9E;
             statusText = "Not sure";
         }
 
@@ -668,12 +634,10 @@ public class DescriptionActivity extends AppCompatActivity {
         overlayLogo.setScaleY(1f);
         overlayLogo.setRotation(0f);
 
-        // Spin: 0 → 360 with ease-in-out
         ObjectAnimator spin = ObjectAnimator.ofFloat(overlayLogo, View.ROTATION, 0f, 360f);
         spin.setDuration(450);
         spin.setInterpolator(new AccelerateDecelerateInterpolator());
 
-        // Pop: 1 → 1.2 → 1 with overshoot feel
         PropertyValuesHolder scaleX = PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.2f, 1f);
         PropertyValuesHolder scaleY = PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.2f, 1f);
         ObjectAnimator pop = ObjectAnimator.ofPropertyValuesHolder(overlayLogo, scaleX, scaleY);
@@ -710,7 +674,6 @@ public class DescriptionActivity extends AppCompatActivity {
                 .start();
     }
 
-    // ---------- helpers ----------
     private int extractFirstInt(String s) {
         if (s == null) return 0;
         Matcher m = Pattern.compile("(\\d{1,3})").matcher(s);

@@ -10,7 +10,6 @@
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground">
 
-    <!-- Left: common name · role -->
     <TextView
         android:id="@+id/historyTitle"
         android:layout_width="0dp"
@@ -22,7 +21,6 @@
         android:maxLines="1"
         android:ellipsize="end" />
 
-    <!-- Right: date yyyy/MM/dd HH:mm -->
     <TextView
         android:id="@+id/historyDate"
         android:layout_width="wrap_content"
